@@ -24,5 +24,5 @@ tidy:
 	perltidy -i 8 -l 180 -b `find . -name '*.pm'` `find . -name '*.pl'`
 
 ../$(ZIP):
-	cd ..; zip -rp $(ZIP) $(NAME)/*.pm $(NAME)/*.pl $(NAME)/HTML $(NAME)/install.xml $(NAME)/menu.opml $(NAME)/strings.txt $(NAME)/Bin/*
+	cd ..; zip -rp $(ZIP) $(NAME)/*.pm $(NAME)/*.pl $(NAME)/HTML $(NAME)/install.xml $(NAME)/menu.opml $(NAME)/strings.txt $(NAME)/Bin/*/squeezeplay $(NAME)/Bin/*/squeezeplay_debug
 
