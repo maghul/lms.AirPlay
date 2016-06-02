@@ -15,3 +15,9 @@ PLUGIN_AIRPLAY_PAUSESTOP
 PLUGIN_AIRPLAY_PAUSESTOP_DESC
 	EN	If Enabled - Pause will stop playing of AirPlay audio. 
 
+PLUGIN_AIRPLAY_SHUTDOWN
+	EN	Shutdown inactive player.
+	
+PLUGIN_AIRPLAY_SHUTDOWN_DESC
+	EN	If Enabled - Will poweroff a player which has been playing using AirPlay after a timeout. If the player starts another song from another before the timeout it will not shut down automatically.
+

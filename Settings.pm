@@ -61,6 +61,13 @@ sub page {
 
 }
 
+# ----------------------------------------------------------------------------
+# Settings are per player
+# ----------------------------------------------------------------------------
+sub needsClient {
+        return 1;
+}
+
 sub prefs {
         $log->debug("Prefs called");
         return ( $prefs, qw( pausestop ) );
@@ -73,6 +80,8 @@ sub handler {
         if ( $params->{'saveSettings'} ) {
                 $prefs->set( 'pausestop', $params->{'pausestop'} );
         }
+        $prefs->set( 'shutdown', $params->{'shutdown'} );
+
         return $class->SUPER::handler( $client, $params );
 }
 

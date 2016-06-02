@@ -5,6 +5,11 @@
 		[% IF prefs.pausestop == 1%] checked="checked" [% END %] value="1"
 	    />
 	[% END %]
+  	[% WRAPPER setting title="PLUGIN_AIRPLAY_SHUTDOWN" desc="PLUGIN_AIRPLAY_SHUTDOWN_DESC" %]
+	    <input type="checkbox" name="shutdown" id="shutdown"
+		[% IF prefs.shutdown == 1%] checked="checked" [% END %] value="1"
+	    />
+	[% END %]
   [% END %]
 [% PROCESS settings/footer.html %]
 
