@@ -1,0 +1,17 @@
+# String file for AirPlay plugin
+
+PLUGIN_AIRPLAY
+	EN	AirPlay
+
+PLUGIN_AIRPLAY_DESC
+	EN	AirPlay is a plugin for routing raw PCM from a shairplay webcast server. It will also control and get metadata from this server.
+
+AIRPLAY
+	EN	AirPlay
+
+PLUGIN_AIRPLAY_PAUSESTOP
+	EN	Pause button stops playing AirPlay audio.
+	
+PLUGIN_AIRPLAY_PAUSESTOP_DESC
+	EN	If Enabled - Pause will stop playing of AirPlay audio. 
+

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+
+<extension>
+	<name>PLUGIN_AIRPLAY</name>
+	<module>Plugins::AirPlay::Plugin</module>
+	<playerMenu>RADIO</playerMenu>
+	<version>0.1</version>
+	<description>PLUGIN_AIRPLAY_DESC</description>
+	<creator>emh</creator>
+	<defaultState>enabled</defaultState>
+	<homepageURL></homepageURL>
+	<optionsURL>plugins/AirPlay/settings/basic.html</optionsURL>
+	<icon>plugins/AirPlay/html/images/airplay.png</icon>
+	<type>2</type><!-- type=extension -->
+	<targetApplication>
+		<id>Squeezecenter</id>
+		<minVersion>7.3</minVersion>
+		<maxVersion>7.*</maxVersion>
+	</targetApplication>
+	<targetPlatform>Linux</targetPlatform>
+
+</extension>
