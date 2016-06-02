@@ -7,7 +7,7 @@ use HTTP::Status qw(RC_OK RC_NOT_FOUND RC_SERVICE_UNAVAILABLE);
 use Slim::Utils::Prefs;
 use Slim::Utils::Log;
 
-use Plugins::AirPlay::Squeezeplay;
+use Plugins::AirPlay::Squareplay;
 
 use constant EXP_TIME => 60 * 60 * 24 * 7;    # expire in one week
 
@@ -19,7 +19,7 @@ my $prefs = preferences('plugin.airplay');
 my $log   = logger('plugin.airplay');
 
 my $resizer = Slim::Utils::Versions->compareVersions( $::VERSION, 7.6 ) < 0 ? "Slim::Utils::ImageResizer" : "Slim::Utils::GDResizer";
-my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
+my $baseUrl = Plugins::AirPlay::Squareplay::getBaseUrl();
 
 eval "use $resizer";
 

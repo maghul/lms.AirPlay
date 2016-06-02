@@ -4,15 +4,14 @@
 
 package Plugins::AirPlay::Squeezebox;
 
-use Plugins::AirPlay::Shairplay;
-use Plugins::AirPlay::Squeezeplay;
+use Plugins::AirPlay::Squareplay;
 
 use Data::Dumper;
 
 use Slim::Utils::Log;
 
 my $log           = logger('plugin.airplay');
-my $baseUrl       = Plugins::AirPlay::Squeezeplay::getBaseUrl();
+my $baseUrl       = Plugins::AirPlay::Squareplay::getBaseUrl();
 my $center_volume = 52;
 
 my $airplay = {};
@@ -151,7 +150,7 @@ sub setAirPlayDeviceVolume {
         my $client = shift;
         my $volume = shift;
 
-        Plugins::AirPlay::Shairplay::command( $client, "volume/$volume" );
+        Plugins::AirPlay::Squareplay::command( $client, "volume/$volume" );
 }
 
 sub airPlayDevicePlay {
@@ -165,7 +164,7 @@ sub airPlayDevicePlay {
 
         $log->debug("$name: Current Playerstate=$playerstate, New State=$newstate\n");
         if ( $playerstate ne $newstate ) {
-                Plugins::AirPlay::Shairplay::command( $client, $newstate );
+                Plugins::AirPlay::Squareplay::command( $client, $newstate );
                 $airplay->{playerstate} = $newstate;
         }
 }

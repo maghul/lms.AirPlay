@@ -12,9 +12,8 @@ use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
 use Plugins::AirPlay::Settings;
-use Plugins::AirPlay::Shairplay;
 use Plugins::AirPlay::CoverArt;
-use Plugins::AirPlay::Squeezeplay;
+use Plugins::AirPlay::Squareplay;
 
 use Data::Dumper;
 
@@ -28,7 +27,7 @@ my $log = Slim::Utils::Log->addLogCategory(
                 'description' => getDisplayName(),
         }
 );
-my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
+my $baseUrl = Plugins::AirPlay::Squareplay::getBaseUrl();
 
 use Slim::Utils::Misc;
 my $prefs = preferences('plugin.airplay');
@@ -71,9 +70,9 @@ sub initPlugin {
         $originalPlaylistJumpCommand =
           Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, \&playlistJumpCommand ] );
 
-        Plugins::AirPlay::Shairplay::startNotifications();
+        Plugins::AirPlay::Squareplay::startNotifications();
 
-        Plugins::AirPlay::Squeezeplay::start();
+        Plugins::AirPlay::Squareplay::start();
 
         return 1;
 }
@@ -93,7 +92,7 @@ sub shutdownPlugin {
         # Remove reroute for all playlist jump requests
         Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, $originalPlaylistJumpCommand ] );
 
-        Plugins::AirPlay::Shairplay::stopNotifications();
+        Plugins::AirPlay::Squareplay::stopNotifications();
         return;
 }
 
@@ -115,7 +114,7 @@ sub playlistJumpCommand {
 
         if ( isRunningAirplay($url) ) {
                 $log->debug("AIRPLAY command: jump $index");
-                Plugins::AirPlay::Shairplay::jump( $client, $index );
+                Plugins::AirPlay::Squareplay::jump( $client, $index );
 
                 #		Slim::Control::Request::notifyFromArray($client, ['airplay', 'jump', $index],);
                 #
@@ -142,7 +141,7 @@ sub timeCallback {
         $log->debug("cli time - time = $time");
 
         if ( isRunningAirplay($stream) ) {
-                Plugins::AirPlay::Shairplay::command( $client, "time/$time" );
+                Plugins::AirPlay::Squareplay::command( $client, "time/$time" );
         }
 }
 
@@ -164,7 +163,7 @@ sub playCallback {
                 #			if ( "play" ne $playmode ) {
                 $log->debug("$name: Issuing $playmode");
 
-                #					Plugins::AirPlay::Shairplay::command($client, "playresume");tx
+                #					Plugins::AirPlay::Squareplay::command($client, "playresume");tx
 
                 #					Plugins::AirPlay::Squeezebox::airPlayDevicePlay($client, $playmode eq "play");
                 Plugins::AirPlay::Squeezebox::airPlayDevicePlay( $client, 1 ) if ( $playmode eq "play" );
@@ -206,7 +205,7 @@ sub clientConnectCallback {
         if (       $request->isCommand( [ ['client'], ['new'] ] )
                 || $request->isCommand( [ ['client'], ['reconnect'] ] ) )
         {
-                Plugins::AirPlay::Shairplay::setClientNotificationState($client);
+                #				Plugins::AirPlay::Squareplay::setClientNotificationState($client);
 
                 # TODO: Only call this once
                 #				Plugins::AirPlay::Shairplay::startSession( $client );
@@ -219,7 +218,7 @@ sub clientConnectCallback {
         if ( $request->isCommand( [ ['client'], ['disconnect'] ] ) ) {
 
                 # TODO: Only call this once
-                Plugins::AirPlay::Shairplay::stopSession($client);
+                Plugins::AirPlay::Squareplay::stopSession($client);
                 Plugins::AirPlay::Squeezebox::initClient($client);
         }
 }

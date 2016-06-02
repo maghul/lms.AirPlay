@@ -1,27 +1,71 @@
 #
-#   Interface to shairplay webcast server
+#  Manage the squareplay daemon.
 #
-package Plugins::AirPlay::Shairplay;
+package Plugins::AirPlay::Squareplay;
 
 use strict;
 
-use JSON::XS::VersionOneAndTwo;
-
 use Slim::Utils::Log;
-use Slim::Utils::Prefs;
-use Slim::Utils::Strings qw(string cstring);
-use Slim::Networking::Async::HTTP;
-use Plugins::AirPlay::ChunkedHTTP;
-use Plugins::AirPlay::Squeezebox;
-use Plugins::AirPlay::Squeezeplay;
+use Slim::Utils::Network;
 
-my $log   = logger('plugin.airplay');
-my $prefs = preferences('plugin.airplay');
+use Proc::Background;
+use File::ReadBackwards;
+use File::Spec::Functions;
+use JSON::XS::VersionOneAndTwo;
+use Config;
 
-my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
+my $squareplay;
+my $log = logger('plugin.airplay');
 
+sub logFile {
+        return catdir( Slim::Utils::OSDetect::dirsFor('log'), "squareplay.log" );
+}
+
+sub start {
+        my $helper = "squareplay";
+        my $helperName = Slim::Utils::Misc::findbin($helper) || do {
+                $log->debug("helper app: $helper not found");
+                return;
+        };
+        my $helperPath = Slim::Utils::OSDetect::getOS->decodeExternalHelperPath($helperName);
+        my $logfile    = logFile();
+
+        $squareplay = undef;
+        my $cmd = $helperPath;
+        $log->info("starting $cmd");
+
+        eval { $squareplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $cmd ); };
+        $log->info("started $cmd $squareplay");
+}
+
+sub checkHelper {
+        $log->info("Helper app check");
+        if ( defined $squareplay ) {
+                $log->info("Helper app exists");
+                if ( !$squareplay->alive() ) {
+                        $log->info("Helper daemon is not running. Will restart");
+                        start();
+                }
+        }
+}
+
+my $baseurl;
+
+sub getBaseUrl() {
+        if ( !defined $baseurl ) {
+
+                #		my $hostname= Slim::Utils::Network::hostAddr();
+                # TODO: Must fix this!
+                my $hostname = "10.223.10.35";
+                $baseurl = "http://$hostname:6111";
+        }
+        return $baseurl;
+}
+
+# ---------------------  Interface to plugin -------------------------------
 my $sessions_running = 0;
 my $sequenceNumber   = -1;
+my $baseUrl          = getBaseUrl();
 
 sub asyncCBContent {
         my $http = shift;
@@ -36,13 +80,12 @@ sub asyncCBContent {
                 $seq += 0;
                 if ( ++$sequenceNumber != $seq ) {
                         if ( $sequenceNumber != -1 ) {
-                                $log->info("Shairplay notification sequence number mismatch: expected $sequenceNumber but got $seq");
+                                $log->info("Squareplay notification sequence number mismatch: expected $sequenceNumber but got $seq");
                         }
                         $sequenceNumber = $seq + 0;
                 }
         }
 
-##    $log->warn(Data::Dump::dump($data));
         eval {
                 my $perl = decode_json($html);
                 my $dump = Data::Dump::dump($perl);
@@ -52,7 +95,7 @@ sub asyncCBContent {
         };
 
         if ($@) {
-                $log->warn( "Shairplay message could not be decoded, shutting down notifications." . $@ );
+                $log->warn( "Squareplay message could not be decoded, shutting down notifications." . $@ );
                 asyncDisconnect( $http, $data );
                 return 0;
         }
@@ -72,7 +115,7 @@ sub reconnectNotifications {
 
         $log->warn("reconnectNotifications. trying again... ");
         $sequenceNumber = -1;
-        Plugins::AirPlay::Squeezeplay::checkHelper();
+        Plugins::AirPlay::Squareplay::checkHelper();
         startNotifications( $$data{RetryTimer} * 2, $$data{MaxRetryTimer} );
 }
 
@@ -159,9 +202,9 @@ sub startNotifications {
 
         $retryTimer = $maxRetryTimer if ( $retryTimer > $maxRetryTimer );
 
-        $log->info("AirPlay::Shairplay startNotifications retryTimer=$retryTimer, maxRetryTimer=$maxRetryTimer ");
+        $log->info("AirPlay::Squareplay startNotifications retryTimer=$retryTimer, maxRetryTimer=$maxRetryTimer ");
         my $url = "$baseUrl/notifications.json";
-        $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
+        $log->info( "AirPlay::Squareplay notification URL='" . $url . "'" );
 
         Plugins::AirPlay::ChunkedHTTP->new()->send_request(
                 {
@@ -194,12 +237,14 @@ sub startSession {
         my $name = $client->name();
 
         my $url = "$baseUrl/control/start";
-        $log->info( "AirPlay::Shairplay start session URL='" . $url . "'" );
+        $log->info( "AirPlay::Squareplay start session URL='" . $url . "'" );
 
-        my $request = HTTP::Request->new( GET => $url );
-        $request->header( "airplay-session-id",   $id );
-        $request->header( "airplay-session-name", $name );
-        $log->debug("TX URL='$url', airplay-session-id='$id', airplay-session-name='$name'");
+        my $request = HTTP::Request->new( POST => $url );
+        my $request->content("[{\"id\":\"$id\",\"name\":\"$name\"}]");
+
+        #    $request->header( "airplay-session-id", $id );
+        #    $request->header( "airplay-session-name", $name );
+        #    $log->debug("TX URL='$url', airplay-session-id='$id', airplay-session-name='$name'");
         Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
 }
 
@@ -210,7 +255,7 @@ sub stopSession {
         my $name = $client->name();
 
         my $url = "$baseUrl/control/stop";
-        $log->info( "AirPlay::Shairplay stop session URL='" . $url . "'" );
+        $log->info( "AirPlay::Squareplay stop session URL='" . $url . "'" );
 
         my $request = HTTP::Request->new( GET => $url );
         $request->header( "airplay-session-id",   $id );
