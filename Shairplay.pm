@@ -21,6 +21,7 @@ my $prefs = preferences('plugin.airplay');
 my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
 
 my $sessions_running = 0;
+my $sequenceNumber   = -1;
 
 sub asyncCBContent {
         my $http = shift;
@@ -34,8 +35,10 @@ sub asyncCBContent {
                 $seq =~ s/seq=//;
                 $seq += 0;
                 if ( ++$sequenceNumber != $seq ) {
+                        if ( $sequenceNumber != -1 ) {
+                                $log->info("Shairplay notification sequence number mismatch: expected $sequenceNumber but got $seq");
+                        }
                         $sequenceNumber = $seq + 0;
-                        $log->info("Shairplay notification sequence number mismatch: expected $sequenceNumber but got $seq");
                 }
         }
 
@@ -65,6 +68,7 @@ sub reconnectNotifications {
         my ( $http, $data ) = @_;
 
         $log->warn("reconnectNotifications. trying again... ");
+        $sequenceNumber = -1;
         Plugins::AirPlay::Squeezeplay::checkHelper();
         startNotifications( $$data{RetryTimer} * 2, $$data{MaxRetryTimer} );
 }
