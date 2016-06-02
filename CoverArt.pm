@@ -45,6 +45,11 @@ sub handler {
                         \.jpg$                                                                                                                                                                                                              
                         /ix;
 
+        # Squeezebox session id is embedded in URI
+        my $squeezebox_id = $path;
+        $squeezebox_id =~ s#/cover.*##;
+        $squeezebox_id =~ s#.*/##;
+
         my $image        = $1;
         my $needsResize  = defined $2 || defined $3 || defined $4 || defined $5 || 0;
         my $resizeParams = $needsResize ? [ $2, $3, $4, $5 ] : undef;
@@ -67,13 +72,14 @@ sub handler {
 
         push @fetchQ,
           {
-                id         => $id,
-                timeout    => time() + IMAGE_REQUEST_TIMEOUT1,
-                path       => $path,
-                httpClient => $httpClient,
-                response   => $response,
-                resizeP    => $resizeParams,
-                image      => $image,
+                id            => $id,
+                timeout       => time() + IMAGE_REQUEST_TIMEOUT1,
+                path          => $path,
+                httpClient    => $httpClient,
+                response      => $response,
+                resizeP       => $resizeParams,
+                image         => $image,
+                squeezebox_id => $squeezebox_id,
           };
 
         $log->debug( sub { "fetchQ: " . ( scalar @fetchQ ) . " fetching: " . ( scalar keys %fetching ) } );
@@ -105,8 +111,6 @@ sub handler {
 sub _fetch {
         my $entry;
 
-        my $id = "00:11:22:33:44:55";    # TODO: Get the real id
-
         while ( !$entry && @fetchQ ) {
 
                 $entry = shift @fetchQ;
@@ -124,7 +128,8 @@ sub _fetch {
 
         return unless $entry;
 
-        my $image = $entry->{'image'};
+        my $image         = $entry->{'image'};
+        my $squeezebox_id = $entry->{'squeezebox_id'};
 
         $log->info("fetching image: $image");
 
@@ -132,7 +137,7 @@ sub _fetch {
 
         $fetching{ $entry->{'id'} } = $entry;
 
-        Slim::Networking::SimpleAsyncHTTP->new( \&_gotImage, \&_gotError, $entry )->get("http://mauree:6111/$id/cover.jpg");
+        Slim::Networking::SimpleAsyncHTTP->new( \&_gotImage, \&_gotError, $entry )->get("http://mauree:6111/$squeezebox_id/cover.jpg");
 }
 
 sub _gotImage {

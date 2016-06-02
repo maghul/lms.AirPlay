@@ -104,7 +104,7 @@ sub playlistJumpCommand {
 
         if ( isRunningAirplay($url) ) {
                 $log->debug("AIRPLAY command: jump $index");
-                Plugins::AirPlay::Shairplay::jump($index);
+                Plugins::AirPlay::Shairplay::jump( $client, $index );
 
                 #		Slim::Control::Request::notifyFromArray($client, ['airplay', 'jump', $index],);
                 #
@@ -173,7 +173,11 @@ sub clientConnectCallback {
         {
                 my $subCmd = $request->{'_request'}[1];
 
-                #				Plugins::AirPlay::Shairplay::setClientNotificationState($client);
+                Plugins::AirPlay::Shairplay::setClientNotificationState($client);
+
+                # TODO: Only call this once
+                #				Plugins::AirPlay::Shairplay::startSession( $client->id(), $client->name() );
+
         }
 }
 

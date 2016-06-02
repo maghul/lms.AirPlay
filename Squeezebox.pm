@@ -12,32 +12,20 @@ use Slim::Utils::Log;
 
 my $log = logger('plugin.airplay');
 
-sub get_client() {
-
-        $log->warn("GET CLIENT");
-        foreach my $client ( Slim::Player::Client::clients() ) {
-                if ( $client->name() =~ /Magnus Rum/ ) {
-
-                        #	    $log->warn("\n !!!CLIENT: ".Data::Dump::dump($client));
-                        return $client;
-                }
-        }
-}
-
-sub start_player() {
+sub start_player {
         $log->warn("START AirPlay squeezebox\n");
-        my $client      = get_client();
-        my $client_name = "00:11:22:33:44:55";    # TODO Use the real id
+        my $client = shift;
 
         if ($client) {
+                my $client_id = $client->id();
                 $log->warn("STARTING AirPlay play\n");
-                $client->execute( [ "playlist", "play", "http://mauree:6111/$client_name/audio.pcm" ] );
+                $client->execute( [ "playlist", "play", "http://mauree:6111/$client_id/audio.pcm" ] );
         }
 }
 
-sub stop_player() {
+sub stop_player {
         $log->warn("STOP AirPlay squeezebox\n");
-        my $client = get_client();
+        my $client = shift;
         if ($client) {
                 $log->warn("STOPPING AirPlay play\n");
                 $client->execute( ["stop"] );
@@ -63,14 +51,14 @@ sub metaDataProvider {
 }
 
 sub dmap_lisitingitem_notification {
-        my $dmap = shift;
-
-        my $id = "00:11:22:33:44:55";    # TODO: Get the real Id
+        my $client = shift;
+        my $dmap   = shift;
 
         my $trackurl = "http://mauree:6111/$id/audio.pcm";
         Slim::Music::Info::setRemoteMetadata( $trackurl, { title => $$dmap{'dmap.itemname'}, } );
-        my $itemid = $$dmap{'dmap.persistentid'};
-        my $obj    = Slim::Schema::RemoteTrack->updateOrCreate(
+        my $itemid        = $$dmap{'dmap.persistentid'};
+        my $squeezebox_id = $client->id();
+        my $obj           = Slim::Schema::RemoteTrack->updateOrCreate(
                 $trackurl,
                 {
                         title  => $$dmap{'dmap.itemname'},
@@ -78,7 +66,7 @@ sub dmap_lisitingitem_notification {
                         album  => $$dmap{'daap.songalbum'},
 
                         #		secs    => $track->{'duration'} / 1000,
-                        coverurl => "airplayimage/$id/cover.$itemid.jpg",
+                        coverurl => "airplayimage/$id/$squeezebox_id/cover.$itemid.jpg",
                         tracknum => $$dmap{'daap.songtracknumber'},
                         bitrate  => 44100,
                 }
@@ -129,10 +117,10 @@ sub between {
 }
 
 sub volume_notification {
+        my $client = shift;
         my $volume = shift;
 
         $log->debug("Volume=$volume\n");
-        my $client = get_client();
 
         my $new_volume = airplay_to_squeezebox_volume($volume);
         $new_volume = 0 if ( $sb_volume < 0 );
@@ -148,7 +136,7 @@ sub volume_notification {
                 else {
                         $log->debug("------ Change Volume!\n");
                         $sb_volume = $new_volume;
-                        changeVolume();
+                        changeVolume($client);
                 }
         }
         else {
@@ -157,11 +145,13 @@ sub volume_notification {
 }
 
 sub changeVolume {
+        my $client = shift;
+
         if ($target_volume) {
                 $log->debug("changeVolume: target_volume=$target_volume, sb_volume=$sb_volume\n");
 
                 my $vol = $target_volume < $sb_volume ? "volumedown" : "volumeup";
-                Plugins::AirPlay::Shairplay::command($vol);
+                Plugins::AirPlay::Shairplay::command( $client, $vol );
         }
 }
 
@@ -181,17 +171,42 @@ sub mixerVolumeCallback {
         changeVolume();
 }
 
+sub find_client {
+        my $id = shift;
+
+        $log->warn("GET CLIENT");
+        foreach my $client ( Slim::Player::Client::clients() ) {
+                $log->debug( "GET CLIENT name=" . $client->name() . ", id=" . $client->id() );
+                if ( $client->id() eq $id ) {
+                        return $client;
+                }
+        }
+        return undef;
+}
+
 sub notification {
         my ($notification) = @_;
 
         $log->warn( "\nNotification\n" . Data::Dump::dump($notification) . "\nNotification\n" );
 
-        my $content = $$notification{"00:11:22:33:44:55"};
-        my $dmap    = $$content{"dmap.listingitem"};
-        dmap_lisitingitem_notification($dmap) if ($dmap);
+        while ( ( $key, $value ) = each %$notification ) {
+                $log->debug("key: '$key', value: $hash{$key}\n");
+                my $client = find_client($key);
+                $log->debug("client is $client");
+                if ($client) {
+                        $log->debug( "client is " . $client->name() );
 
-        my $volume = $$content{"volume"};
-        volume_notification($volume) if ( defined $volume );
+                        my $content = $value;
+                        my $dmap    = $$content{"dmap.listingitem"};
+                        dmap_lisitingitem_notification( $client, $dmap ) if ($dmap);
+
+                        my $volume = $$content{"volume"};
+                        volume_notification( $client, $volume ) if ( defined $volume );
+                }
+                else {
+                        $log->debug("No client named '$key' yet....");
+                }
+        }
 }
 
 1;

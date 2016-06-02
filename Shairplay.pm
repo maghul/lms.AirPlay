@@ -87,28 +87,32 @@ sub _tx {
 }
 
 sub command {
+        my $client  = shift;
         my $command = shift;
-        my $player  = "00:11:22:33:44:55";
+        my $player  = $client->id();
 
         my $params;
-        $log->info("AirPlay::Shairplay command '$command'");
+        $log->info("AirPlay::Shairplay client '$client->name()', command '$command'");
         _tx("$baseURL/$player/control/$command");
 }
 
 sub jump {
-        my $index = shift;
-        command( $index > 0 ? "nextitem" : "previtem" );
+        my $client = shift;
+        my $index  = shift;
+        command( $client, $index > 0 ? "nextitem" : "previtem" );
 }
 
-sub play {
-        my $index = shift;
-        command( $index > 0 ? "nextitem" : "previtem" );
-}
-
-sub pause {
-        my $index = shift;
-        command( $index > 0 ? "nextitem" : "previtem" );
-}
+#sub play {
+#    my $client= shift;
+#    my $index= shift;
+#    command( $client, $index>0?"nextitem":"previtem");
+#}
+#
+#sub pause {
+#    my $client= shift;
+#    my $index= shift;
+#    command( $client, $index>0?"nextitem":"previtem");
+#}
 
 sub setClientNotificationState {
         my $client = shift;
