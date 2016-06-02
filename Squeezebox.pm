@@ -295,6 +295,7 @@ sub mixerVolumeCallback {
         #	}
 }
 
+# TODO: We should get the callback when prefs are changed but that doesn't seem to happen...
 sub externalVolumeInfoCallback {
         my $request = shift;
         my $client  = $request->client;
@@ -303,6 +304,11 @@ sub externalVolumeInfoCallback {
                 my $relative = $request->getParam('_p1');
                 my $precise  = $request->getParam('_p2');
                 $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$relative, precise=$precise" );
+
+                $log->debug( "getinfo... client=" . $client );
+                my $info = getinfo($client);
+                $info{relative} = $relative;
+                $info{precise}  = $precise;
         }
 }
 
