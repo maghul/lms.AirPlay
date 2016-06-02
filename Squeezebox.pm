@@ -10,7 +10,8 @@ use Data::Dumper;
 
 use Slim::Utils::Log;
 
-my $log = logger('plugin.airplay');
+my $log     = logger('plugin.airplay');
+my $baseUrl = "http://localhost:6111";
 
 my $client_info;
 
@@ -41,7 +42,7 @@ sub start_player {
         if ($client) {
                 my $client_id = $client->id();
                 $log->warn("STARTING AirPlay play\n");
-                $client->execute( [ "playlist", "play", "http://mauree:6111/$client_id/audio.pcm" ] );
+                $client->execute( [ "playlist", "play", "$baseUrl/$client_id/audio.pcm" ] );
         }
 }
 
@@ -73,9 +74,6 @@ sub metaDataProvider {
 sub dmap_lisitingitem_notification {
         my $client = shift;
         my $dmap   = shift;
-
-        my $id   = $client->id();
-        my $name = $client->name();
 
         my $trackurl = "$baseUrl/$id/audio.pcm";
         Slim::Music::Info::setRemoteMetadata( $trackurl, { title => $$dmap{'dmap.itemname'}, } );
@@ -366,9 +364,6 @@ sub notification {
                         my $progress = $$content{"progress"};
                         progress_notification( $client, $progress ) if ( defined $progress );
 
-                        start_player($client) if ( $value eq "play" );
-                        stop_player($client)  if ( $value eq "pause" );
-                        stop_player($client)  if ( $value eq "stop" );
                 }
                 else {
                         $log->debug("No client named '$key' yet....");

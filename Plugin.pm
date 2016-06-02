@@ -61,7 +61,7 @@ sub initPlugin {
         Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::externalVolumeInfoCallback, [ ['getexternalvolumeinfo'] ] );
 
         Slim::Formats::RemoteMetadata->registerProvider(
-                match => qr/mauree/,
+                match => qr/localhost:6111/,                                # TODO: Use baseUrl
                 func  => \&Plugins::AirPlay::Squeezebox::metaDataProvider
         );
 
@@ -94,7 +94,7 @@ sub shutdownPlugin {
 sub isRunningAirplay {
         my $url = shift;
 
-        return $url =~ /^http:\/\/mauree\:6111/;
+        return $url =~ /^http:\/\/localhost\:6111/;    # TODO: use baseUrl
 }
 
 sub playlistJumpCommand {

@@ -17,8 +17,7 @@ use Plugins::AirPlay::Squeezebox;
 my $log   = logger('plugin.airplay');
 my $prefs = preferences('plugin.airplay');
 
-#my $baseURL    = 'http://pollock';
-my $baseURL = 'http://mauree:6111';
+my $baseURL = 'http://localhost:6111';
 
 my $sessions_running = 0;
 
