@@ -55,7 +55,7 @@ sub initPlugin {
         # This actually does nothing. It is used for notifications to the AirPlay server
         Slim::Control::Request::addDispatch( [ 'airplay', '_command', '_arg1' ], [ 1, 0, 0, undef ] );
 
-        Plugins::AirPlay::Shairplay->startNotifications();
+        Plugins::AirPlay::Shairplay::startNotifications();
 
         return 1;
 }

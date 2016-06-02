@@ -41,27 +41,59 @@ sub asyncCBContentTypeError {
 
         # error callback for establishing content type - causes indexHandler to be processed again with stored params
         my ( $http, $error, $client, $params, $callback, $httpClient, $response ) = @_;
-        logBacktrace("asyncCBContentTypeError");
-        $log->warn( Data::Dump::dump($http) );
-        $log->warn( Data::Dump::dump($error) );
-        $log->warn( Data::Dump::dump(@_) );
 }
 
+sub reconnectNotifications {
+        my ( $error, $data ) = @_;
+
+        $log->warn("reconnectNotifications. trying again... ");
+
+        startNotifications( $$data{RetryTimer} * 2, $$data{MaxRetryTimer} );
+}
+
+sub asyncDisconnect {
+        my $http = shift;
+        my $data = shift;
+
+        $log->warn("Notifications disconnecting. Will try again... ");
+
+        # Timeout if we never get any data
+        Slim::Utils::Timers::setTimer( $http, Time::HiRes::time() + $$data{RetryTimer}, \&reconnectNotifications, $data );
+}
+my $params;
+$log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
+
+Plugins::AirPlay::HTTP->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
+
 sub startNotifications {
-        my $params;
-        $log->info("AirPlay::Shairplay startNotifications");
+        my $retryTimer    = shift || 3;
+        my $maxRetryTimer = shift || 10;
+
+        $retryTimer = $maxRetryTimer if ( $retryTimer > $maxRetryTimer );
+
+        $log->info("AirPlay::Shairplay startNotifications retryTimer=$retryTimer, maxRetryTimer=$maxRetryTimer ");
         my $url = "$baseURL/notifications.json";
         $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
 
         Plugins::AirPlay::HTTP->new()->send_request(
                 {
-                        'request' => HTTP::Request->new( GET => $url ),
-                        'onBody'  => \&asyncCBContent,
-                        'onError' => \&asyncCBContentTypeError,
-                        'Timeout' => 100000000,
-
-                        #	'passthrough' => [ $client, $params, @_ ],
+                        'request'      => HTTP::Request->new( GET => $url ),
+                        'onBody'       => \&asyncCBContent,
+                        'onError'      => \&asyncCBContentTypeError,
+                        'onDisconnect' => \&asyncDisconnect,
+                        'Timeout'      => 100000000,
+                        'passthrough'  => [
+                                {
+                                        'RetryTimer'    => $retryTimer,
+                                        'MaxRetryTimer' => $maxRetryTimer
+                                }
+                        ]
                 }
         );
 
+}
+
+sub stopNotifications {
+
+        # NYI
 }

@@ -106,6 +106,17 @@ sub new_socket {
         }
 }
 
+sub disconnect_callback {
+        my $self = shift;
+        my $args = shift;
+
+        if ( my $onDisconnect = $args->{onDisconnect} ) {
+                my $passthrough = $args->{passthrough} || [];
+                $onDisconnect->( $self, @{$passthrough} );
+        }
+
+}
+
 sub use_proxy {
         my $self = shift;
 
@@ -256,6 +267,7 @@ sub _http_socket_error {
 
         Slim::Utils::Timers::killTimers( $socket, \&_http_socket_error );
 
+        $self->disconnect_callback($args);
         $self->disconnect;
 
         return $self->_http_error( "Error on HTTP socket: $!", $args );
@@ -268,6 +280,7 @@ sub _http_error {
                 $self->fh->close;
         }
 
+        $self->disconnect_callback($args);
         $self->disconnect;
 
         # Bug 8801, Only print an error if the caller doesn't have an onError handler
@@ -414,9 +427,27 @@ sub _http_read_body {
         if ($result) {
                 main::DEBUGLOG && $log->debug("Read body: [$result] bytes");
         }
+        else {
+                main::DEBUGLOG && $log->debug("Read body: undefined result");
+        }
 
-        if ( $result < 0 ) {
+        if ( $result < 0 && $@ ) {
+                $log->warn( "Error reading from socket: " . $@ );
+                $result = 0;
+        }
+        if ( !defined $result ) {
                 $log->warn("Error reading from socket");
+                $result = 0;
+        }
+        if ( $result == 0 ) {
+                $log->warn("End of data from socket");
+
+                # close and remove the socket
+                $self->disconnect_callback($args);
+                $self->disconnect;
+                return;
+        }
+        if ( $result < 0 ) {
 
                 # More body data to read
 
