@@ -197,6 +197,7 @@ sub startSession {
         my $request = HTTP::Request->new( GET => $url );
         $request->header( "airplay-session-id",   $id );
         $request->header( "airplay-session-name", $name );
+        $log->debug("TX URL='$url', airplay-session-id='$id', airplay-session-name='$name'");
         Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
 }
 
@@ -212,6 +213,8 @@ sub stopSession {
         my $request = HTTP::Request->new( GET => $url );
         $request->header( "airplay-session-id",   $id );
         $request->header( "airplay-session-name", $name );
+        $log->debug("TX URL='$url', airplay-session-id='$id', airplay-session-name='$name'");
+
         Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
 }
 
