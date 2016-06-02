@@ -76,9 +76,8 @@ sub dmap_lisitingitem_notification {
 
         my $trackurl = "http://mauree:6111/$id/audio.pcm";
         Slim::Music::Info::setRemoteMetadata( $trackurl, { title => $$dmap{'dmap.itemname'}, } );
-        my $itemid        = $$dmap{'dmap.persistentid'};
-        my $squeezebox_id = $client->id();
-        my $obj           = Slim::Schema::RemoteTrack->updateOrCreate(
+        my $itemid = $$dmap{'dmap.persistentid'};
+        my $obj    = Slim::Schema::RemoteTrack->updateOrCreate(
                 $trackurl,
                 {
                         title  => $$dmap{'dmap.itemname'},
@@ -86,7 +85,7 @@ sub dmap_lisitingitem_notification {
                         album  => $$dmap{'daap.songalbum'},
 
                         #		secs    => $track->{'duration'} / 1000,
-                        coverurl => "airplayimage/$id/$squeezebox_id/cover.$itemid.jpg",
+                        coverurl => "airplayimage/$id/cover.$itemid.jpg",
                         tracknum => $$dmap{'daap.songtracknumber'},
                         bitrate  => 44100,
                 }
