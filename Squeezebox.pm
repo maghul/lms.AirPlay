@@ -218,29 +218,45 @@ sub setAirPlayDeviceVolume {
         }
 }
 
+my $current_direction;
+
+sub _direction_timeout {
+        $log->warn("User lifted finger from iPhone\n");
+        my $client = shift;
+        $current_direction = 0;
+}
+
 sub relative_volume_notification {
         my $client      = shift;
         my $volume      = shift;
         my $prev_volume = shift;
 
         $log->debug("EMH volume=$volume, prev_volume=$prev_volume");
-        if ( $volume > $prev_volume && $prev_volume > 50 ) {
+        if ( $volume > $prev_volume && $current_direction >= 0 ) {
                 $log->debug("EMH squeezebox volume +2");
                 $client->execute( [ "mixer", "volume", "+2" ] );
+                $current_direction = 1;
         }
-        if ( $volume < $prev_volume && $prev_volume < 50 ) {
+        if ( $volume < $prev_volume && $current_direction <= 0 ) {
                 $log->debug("EMH squeezebox volume -2");
                 $client->execute( [ "mixer", "volume", "-2" ] );
+                $current_direction = -1;
         }
 
         $target_volume = 50;
 
         #	if ( $volume<$target_volume-3 || $volume>$target_volume+3 ) {
-        if ( between( $volume, $target_volume, $prev_volume ) ) {
+        $log->debug( "EMH target_volume-3=" . ( $target_volume - 3 ) . ", volume=$volume, target_volume+3=" . ( $target_volume + 3 ) );
+        if ( $volume > $target_volume - 3 && $volume < $target_volume + 3 ) {
+
+                #	if (between( $volume, $target_volume, $prev_volume )) {
                 undef $target_volume;
+                Slim::Utils::Timers::setTimer( $client, Time::HiRes::time() + 0.3, \&_direction_timeout );
+                $log->debug("EMH Done changing volume");
         }
         else {
                 _changeVolume($client);
+                Slim::Utils::Timers::killTimers( $client, \&_direction_timeout );
         }
 
         #	}
