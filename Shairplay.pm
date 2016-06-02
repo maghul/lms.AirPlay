@@ -95,6 +95,12 @@ sub pause {
         command( $index > 0 ? "nextitem" : "previtem" );
 }
 
+sub setClientNotificationState {
+        my $client = shift;
+
+        _tx("$baseURL/control/notify");
+}
+
 sub startNotifications {
         my $retryTimer    = shift || 3;
         my $maxRetryTimer = shift || 10;

@@ -65,6 +65,7 @@ sub initPlugin {
 }
 
 sub shutdownPlugin {
+        Slim::Control::Request::unsubscribe( \&clientConnectCallback );
 
         Slim::Control::Request::unsubscribe( \&pauseCallback );
         Slim::Control::Request::unsubscribe( \&playlistCallback );
@@ -145,6 +146,25 @@ sub playlistCallback {
                 if ( $request->isCommand( [ ['playlist'], ['index'] ] ) ) {
                         $log->debug("CLI Playlist - Playlist index notification.");
                 }
+        }
+}
+
+# Client connect callback.
+sub clientConnectCallback {
+        my $request = shift;
+
+        my $client = $request->client();
+        return if !defined $client;
+
+        $log->debug( "clientConnectCallback client='" . $client->name() . "'" );
+
+        # Check if new or reconnected client and set current AirPlay state if any.
+        if (       $request->isCommand( [ ['client'], ['new'] ] )
+                || $request->isCommand( [ ['client'], ['reconnect'] ] ) )
+        {
+                my $subCmd = $request->{'_request'}[1];
+
+                #				Plugins::AirPlay::Shairplay::setClientNotificationState($client);
         }
 }
 
