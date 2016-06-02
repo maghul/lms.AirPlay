@@ -20,10 +20,21 @@ my $prefs = preferences('plugin.airplay');
 #my $baseURL    = 'http://pollock';
 my $baseURL = 'http://mauree:6111';
 
+my $sessions_running = 0;
+
 sub asyncCBContentType {
         my ( $http, $client, $params, $callback, $httpClient, $response ) = @_;
         $log->warn( Data::Dump::dump($http) );
         return 1;
+}
+
+sub start_sessions {
+        if ( !$sessions_running ) {
+                $sessions_running = 1;
+
+                # TODO: Loop through all wanted sessions (players?)
+                startSession( "00:11:22:33:44:55", "Magnus Rum" );
+        }
 }
 
 sub asyncCBContent {
@@ -38,6 +49,7 @@ sub asyncCBContent {
         #    $log->warn(Data::Dump::dump($perl));
 
         Plugins::AirPlay::Squeezebox::notification($perl);
+        start_sessions();
         return 1;
 }
 
@@ -60,6 +72,7 @@ sub asyncDisconnect {
         my $data = shift;
 
         $log->warn("Notifications disconnecting. Will try again... ");
+        $sessions_running = 0;    # Restart sessions on reconnect?
 
         # Timeout if we never get any data
         Slim::Utils::Timers::setTimer( $http, Time::HiRes::time() + $$data{RetryTimer}, \&reconnectNotifications, $data );
@@ -135,3 +148,17 @@ sub stopNotifications {
 
         # NYI
 }
+
+sub startSession {
+        my ( $id, $name ) = @_;
+
+        my $url = "$baseURL/control/start";
+        $log->info( "AirPlay::Shairplay start session URL='" . $url . "'" );
+
+        my $request = HTTP::Request->new( GET => $url );
+        $request->header( "airplay-session-id",   $id );
+        $request->header( "airplay-session-name", $name );
+        Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
+}
+
+1;
