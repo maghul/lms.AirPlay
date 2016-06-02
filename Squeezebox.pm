@@ -12,6 +12,14 @@ use Slim::Utils::Log;
 
 my $log = logger('plugin.airplay');
 
+my $client_info;
+
+sub initClient {
+        my $client = shift;
+
+        $$client_info{$client} = {};
+}
+
 sub start_player {
         $log->warn("START AirPlay squeezebox\n");
         my $client = shift;
@@ -32,13 +40,11 @@ sub stop_player {
         }
 }
 
-local $metadata;
-
 sub metaDataProvider {
         my ( $client, $url ) = @_;
 
-        if ( !$metadata ) {
-                $metadata = {
+        if ( !$$client_info{$client}{metadata} ) {
+                $$client_info{$client}{metadata} = {
                         artist => "",
                         album  => "",
 
@@ -46,8 +52,8 @@ sub metaDataProvider {
                         type    => "AirPlay"
                 };
         }
-        print Data::Dump::dump($metadata);
-        return $metadata;
+        print Data::Dump::dump( $$client_info{$client}{metadata} );
+        return $$client_info{$client}{metadata};
 }
 
 sub dmap_lisitingitem_notification {
@@ -72,7 +78,7 @@ sub dmap_lisitingitem_notification {
                 }
         );
 
-        $metadata = {
+        $$client_info{$client}{metadata} = {
                 artist => $$dmap{'daap.songartist'},
                 album  => $$dmap{'daap.songalbum'},
 

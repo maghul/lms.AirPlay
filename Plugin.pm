@@ -184,7 +184,8 @@ sub clientConnectCallback {
                 Slim::Control::Request::executeRequest( undef, ['getexternalvolumeinfo'] );
 
                 # TODO: Only call this once
-                #				Plugins::AirPlay::Shairplay::startSession( $client->id(), $client->name() );
+                #				Plugins::AirPlay::Shairplay::startSession( $client );
+                Plugins::AirPlay::Squeezebox::initClient($client);
 
         }
 }

@@ -145,7 +145,10 @@ sub stopNotifications {
 }
 
 sub startSession {
-        my ( $id, $name ) = @_;
+        my ($client) = @_;
+
+        my $id   = $client->id();
+        my $name = $client->name();
 
         my $url = "$baseURL/control/start";
         $log->info( "AirPlay::Shairplay start session URL='" . $url . "'" );
@@ -161,7 +164,8 @@ sub startAllSessions {
                 $sessions_running = 1;
                 foreach my $client ( Slim::Player::Client::clients() ) {
                         $log->debug( "Start Session client name=" . $client->name() . ", id=" . $client->id() );
-                        startSession( $client->id(), $client->name() );
+                        Plugins::AirPlay::Squeezebox::initClient($client);
+                        startSession($client);
                 }
         }
 }
