@@ -51,7 +51,7 @@ sub metaDataProvider {
         return $metadata;
 }
 
-sub notification {
+sub dmap_lisitingitem_notification {
         my ($notification) = @_;
 
         $log->warn( "\nNotification\n" . Data::Dump::dump($notification) . "\nNotification\n" );
@@ -84,7 +84,15 @@ sub notification {
         };
 
         $log->debug( "Playing info: " . Data::Dump::dump($obj) );
+}
 
+sub notification {
+        my ($notification) = @_;
+
+        $log->warn( "\nNotification\n" . Data::Dump::dump($notification) . "\nNotification\n" );
+
+        my $dmap = $$notification{"dmap.listingitem"};
+        dmap_lisitingitem_notification($dmap) if ($dmap);
 }
 
 1;
