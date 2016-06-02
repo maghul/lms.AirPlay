@@ -74,7 +74,10 @@ sub dmap_lisitingitem_notification {
         my $client = shift;
         my $dmap   = shift;
 
-        my $trackurl = "http://mauree:6111/$id/audio.pcm";
+        my $id   = $client->id();
+        my $name = $client->name();
+
+        my $trackurl = "$baseUrl/$id/audio.pcm";
         Slim::Music::Info::setRemoteMetadata( $trackurl, { title => $$dmap{'dmap.itemname'}, } );
         my $itemid = $$dmap{'dmap.persistentid'};
         my $obj    = Slim::Schema::RemoteTrack->updateOrCreate(
@@ -102,6 +105,24 @@ sub dmap_lisitingitem_notification {
         };
 
         $log->debug( "Playing info: " . Data::Dump::dump($obj) );
+
+}
+
+sub progress_notification {
+        my $client   = shift;
+        my $progress = shift;
+
+        my $song    = $client->streamingSong;
+        my $newtime = $$progress{current} / 1000;
+        my $length  = $$progress{length} / 1000;
+
+        #	start_player($client); # Might flush?
+        $log->debug(" setting offset=$newtime, duration=$length");
+        $song->startOffset($newtime);
+
+        #	$song->startOffset($newtime-$client->songElapsedSeconds());
+        $song->duration($length);
+        $log->debug( "$name: song=" . $song->duration );
 
 }
 
@@ -341,6 +362,13 @@ sub notification {
 
                         my $volume = $$content{"volume"};
                         volume_notification( $client, $volume ) if ( defined $volume );
+
+                        my $progress = $$content{"progress"};
+                        progress_notification( $client, $progress ) if ( defined $progress );
+
+                        start_player($client) if ( $value eq "play" );
+                        stop_player($client)  if ( $value eq "pause" );
+                        stop_player($client)  if ( $value eq "stop" );
                 }
                 else {
                         $log->debug("No client named '$key' yet....");
