@@ -1,4 +1,4 @@
-test:
+test: tests
 
 tests:
 	perl TestRunner.pl
