@@ -92,11 +92,12 @@ sub _http_error {
 sub _parse_header {
         my ( $self, $buf, $bufsize, $args ) = @_;
 
-        $log->error("_parser_chunk: buf=$buf");
+        #	$log->error("_parser_chunk: buf=$buf" );
 
-        $log->error("parse header");
+        #	$log->error("parse header" );
         if ( $buf =~ /\r\n\r\n/ ) {
-                $log->error("parse header DONE");
+
+                #		$log->error("parse header DONE" );
                 $self->response( HTTP::Response->new( 200, "Hunky Dory" ) );
                 $self->socket->set( "content_parser", \&_parse_chunk );
                 if ( my $cb = $args->{onConnect} ) {
@@ -113,29 +114,33 @@ sub _parse_header {
 sub _parse_chunk {
         my ( $self, $buf, $bufsize, $args ) = @_;
 
-        $log->error("_parser_chunk: buf=$buf");
+        #	$log->error("_parser_chunk: buf=$buf" );
         my $eol = index( $buf, "\r\n" );
         if ( !$eol ) {
                 return 0;
         }
         my $chunk_line = substr( $buf, 0, $eol );
-        $log->error("Read chunk_line=$chunk_line");
+
+        #	$log->error("Read chunk_line=$chunk_line" );
         my $chunk_len = $chunk_line;
         $chunk_len =~ s/;.*//;    # ignore potential chunk parameters
-        $log->error("Read chunk_len=$chunk_len");
+
+        #	$log->error("Read chunk_len=$chunk_len" );
         unless ( $chunk_len =~ /^([\da-fA-F]+)\s*$/ ) {
                 $self->_http_error( "Bad chunk-size in HTTP response: $buf", $args );
                 return 0;
         }
         my $chunk_size = hex($1);
-        $log->error("Read chunk_size=$chunk_size");
+
+        #	$log->error("Read chunk_size=$chunk_size" );
         my $chunk_start = $eol + 2;
         my $chunk_end   = $chunk_start + $chunk_size;
         if ( $bufsize > $chunk_end ) {
 
                 # We have a complete chunk
                 my $chunk = substr( $buf, $chunk_start, $chunk_end - $chunk_start );
-                $log->error("Read chunk=$chunk");
+
+                #		$log->error("Read chunk=$chunk" );
 
                 if ( my $cb = $args->{onBody} ) {
                         my $passthrough = $args->{passthrough} || [];
@@ -166,7 +171,8 @@ sub _disconnect {
 
 sub _http_read {
         my ( $self, $args ) = @_;
-        $log->error("Read");
+
+        #	$log->error("Read");
 
         my $buf     = $self->socket->get("buf");
         my $bufsize = $self->socket->get("bufsize");
@@ -178,9 +184,10 @@ sub _http_read {
                         return;
                 }
                 $bufsize += $n;
-                $log->error("Read n=$n");
-                $log->error("Read bufsize=$bufsize");
-                $log->error("Read buf=$buf");
+
+                #		$log->error("Read n=$n" );
+                #		$log->error("Read bufsize=$bufsize" );
+                $log->debug("Read buf=$buf");
 
                 if ( $n == 0 ) {
                         $self->_disconnect($args);
@@ -190,21 +197,25 @@ sub _http_read {
                 my $sp;
                 do {
                         my $parser = $self->socket->get("content_parser");
-                        $log->error("Parsed parser=$parser");
+
+                        #			$log->error("Parsed parser=$parser" );
 
                         $sp = &$parser( $self, $buf, $bufsize, $args );
-                        $log->error("Parsed sp=$sp");
+
+                        #			$log->error("Parsed sp=$sp" );
                         $buf = substr( $buf, $sp );
                         $bufsize -= $sp;
-                        $log->error("Parsed buf=$buf");
-                        $log->error("Parsed bufsize=$bufsize");
+
+                        #			$log->error("Parsed buf=$buf" );
+                        #			$log->error("Parsed bufsize=$bufsize" );
                 } until ( $sp == 0 || $bufsize == 0 );
 
         }
 }
 
 sub init {
-        $log->error("Init");
+
+        #	$log->error("Init");
 }
 
 1;
