@@ -198,11 +198,9 @@ sub setAirPlayDeviceVolume {
 
         $target_volume = $volume;
         $log->debug("EMH setAirPlayDeviceVolume target_volume=$target_volume, start=$start");
-
-        #	if ( $start ) {
-        _changeVolume($client);
-
-        #	}
+        if ($start) {
+                _changeVolume($client);
+        }
 }
 
 sub relative_volume_notification {
@@ -210,28 +208,26 @@ sub relative_volume_notification {
         my $volume      = shift;
         my $prev_volume = shift;
 
-        if ( $volume > 90 ) {
-                $log->debug("EMH Relative Mixer volume up!");
+        $log->debug("EMH volume=$volume, prev_volume=$prev_volume");
+        if ( $volume > $prev_volume && $prev_volume > 50 ) {
+                $log->debug("EMH squeezebox volume +2");
                 $client->execute( [ "mixer", "volume", "+2" ] );
         }
-        elsif ( $volume < 10 ) {
-                $log->debug("EMH Relative Mixer volume down!");
+        if ( $volume < $prev_volume && $prev_volume < 50 ) {
+                $log->debug("EMH squeezebox volume -2");
                 $client->execute( [ "mixer", "volume", "-2" ] );
         }
-        else {
-                $log->debug("EMH Relative Mixer volume !");
-        }
 
-        #	if ( $target_volume ) {
         $target_volume = 50;
-        if ( $volume < $target_volume - 3 || $volume > $target_volume + 3 ) {
 
-                #	if ( ! between( $volume,$target_volume,$prev_volume) ) {
+        #	if ( $volume<$target_volume-3 || $volume>$target_volume+3 ) {
+        if ( between( $volume, $target_volume, $prev_volume ) ) {
+                undef $target_volume;
+        }
+        else {
                 _changeVolume($client);
         }
 
-        #	} else {
-        #		setAirPlayDeviceVolume($client, 50);
         #	}
 }
 
@@ -239,7 +235,7 @@ sub relativeMixerVolumeCallback {
         my $request = shift;
         my $client  = $request->client;
 
-        setAirPlayDeviceVolume( $client, 50 );
+        #	setAirPlayDeviceVolume($client, 50);
 }
 
 sub absolute_volume_notification {
@@ -333,9 +329,7 @@ sub externalVolumeInfoCallback {
 sub find_client {
         my $id = shift;
 
-        $log->warn("GET CLIENT");
         foreach my $client ( Slim::Player::Client::clients() ) {
-                $log->debug( "GET CLIENT name=" . $client->name() . ", id=" . $client->id() );
                 if ( $client->id() eq $id ) {
                         return $client;
                 }
@@ -346,14 +340,12 @@ sub find_client {
 sub notification {
         my ($notification) = @_;
 
-        $log->warn( "\nNotification\n" . Data::Dump::dump($notification) . "\nNotification\n" );
-
         while ( ( $key, $value ) = each %$notification ) {
                 $log->debug("key: '$key', value: $hash{$key}\n");
                 my $client = find_client($key);
-                $log->debug("client is $client");
                 if ($client) {
-                        $log->debug( "client is " . $client->name() );
+
+                        #			$log->debug( "client is ".$client->name() );
 
                         my $content = $value;
                         my $dmap    = $$content{"dmap.listingitem"};
