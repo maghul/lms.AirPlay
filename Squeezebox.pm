@@ -34,14 +34,12 @@ sub initialize {
 
         if ( !exists $$airplay{$id} ) {
                 $$airplay{$id} = $br;
-                print "squareplay = $squareplay\n";
-                $squareplay->post_request( "control/start", $self->getJsonString() );
-
-                $self->command("volume/absolute");
-                $log->debug("Trying to get external volume info for new player...");
-                Slim::Control::Request::executeRequest( $client, ['getexternalvolumeinfo'] );
         }
-        $log->debug("SETTING ID=$id, br=$br\n");
+	$squareplay->post_request( "control/start", $self->getJsonString() );
+	$self->command("volume/absolute");
+	$log->debug("Trying to get external volume info for new player...");
+	Slim::Control::Request::executeRequest( $client, ['getexternalvolumeinfo'] );
+
         return $br;
 }
 
