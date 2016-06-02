@@ -307,15 +307,14 @@ sub absoluteMixerVolumeCallback {
 }
 
 sub volume_notification {
-        my $client   = shift;
-        my $volume   = shift;
-        my $relative = 1;
+        my $client = shift;
+        my $volume = shift;
 
         my $prev_volume = $sb_volume;
         $sb_volume = airplay_to_squeezebox_volume($volume);
 
         my $info = getinfo($client);
-        if ( $info{relative} ) {
+        if ( $$info{relative} ) {
                 relative_volume_notification( $client, $sb_volume, $prev_volume );
         }
         else {
@@ -325,14 +324,13 @@ sub volume_notification {
 }
 
 sub mixerVolumeCallback {
-        my $request  = shift;
-        my $client   = $request->client;
-        my $relative = 1;
+        my $request = shift;
+        my $client  = $request->client;
 
         return if !defined $client;
         $log->debug( "getinfo... client=" . $client );
         my $info = getinfo($client);
-        if ( $info{relative} ) {
+        if ( $$info{relative} ) {
                 relativeMixerVolumeCallback( $request, $client );
         }
         else {
@@ -350,10 +348,19 @@ sub externalVolumeInfoCallback {
                 my $precise  = $request->getParam('_p2');
                 $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$relative, precise=$precise" );
 
+                if ( defined $relative ) {
+                        $relative = 1;
+                        $precise  = 0;
+                }
+                else {
+                        $relative = 0;
+                        $precise  = 1;
+                }
+
                 $log->debug( "getinfo... client=" . $client );
                 my $info = getinfo($client);
-                $info{relative} = $relative;
-                $info{precise}  = $precise;
+                $$info{relative} = $relative;
+                $$info{precise}  = $precise;
         }
 }
 
