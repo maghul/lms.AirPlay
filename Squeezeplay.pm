@@ -6,6 +6,7 @@ package Plugins::AirPlay::Squeezeplay;
 use strict;
 
 use Slim::Utils::Log;
+use Slim::Utils::Network;
 
 use Proc::Background;
 use File::ReadBackwards;
@@ -45,3 +46,14 @@ sub start {
 
 }
 
+my $baseurl;
+
+sub getBaseUrl() {
+        if ( !defined $baseurl ) {
+                my $hostname = Slim::Utils::Network::hostAddr();
+                $baseurl = "http://$hostname:6111";
+        }
+        return $baseurl;
+}
+
+1;

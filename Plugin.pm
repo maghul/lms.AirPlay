@@ -28,6 +28,7 @@ my $log = Slim::Utils::Log->addLogCategory(
                 'description' => getDisplayName(),
         }
 );
+my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
 
 use Slim::Utils::Misc;
 my $prefs = preferences('plugin.airplay');
@@ -61,8 +62,9 @@ sub initPlugin {
         #   Check volume control type
         Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::externalVolumeInfoCallback, [ ['getexternalvolumeinfo'] ] );
 
+        my $baseUrlRe = quotemeta($baseUrl);
         Slim::Formats::RemoteMetadata->registerProvider(
-                match => qr/localhost:6111/,                                # TODO: Use baseUrl
+                match => qr/$baseUrlRe/,
                 func  => \&Plugins::AirPlay::Squeezebox::metaDataProvider
         );
 
@@ -95,9 +97,9 @@ sub shutdownPlugin {
 }
 
 sub isRunningAirplay {
-        my $url = shift;
-
-        return $url =~ /^http:\/\/localhost\:6111/;    # TODO: use baseUrl
+        my $url       = shift;
+        my $baseUrlRe = quotemeta($baseUrl);
+        return $url =~ /^$baseUrlRe/;
 }
 
 sub playlistJumpCommand {

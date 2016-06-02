@@ -5,13 +5,14 @@
 package Plugins::AirPlay::Squeezebox;
 
 use Plugins::AirPlay::Shairplay;
+use Plugins::AirPlay::Squeezeplay;
 
 use Data::Dumper;
 
 use Slim::Utils::Log;
 
 my $log     = logger('plugin.airplay');
-my $baseUrl = "http://localhost:6111";
+my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
 
 my $client_info;
 

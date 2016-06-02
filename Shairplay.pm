@@ -13,11 +13,12 @@ use Slim::Utils::Strings qw(string cstring);
 use Slim::Networking::Async::HTTP;
 use Plugins::AirPlay::Chunked;
 use Plugins::AirPlay::Squeezebox;
+use Plugins::AirPlay::Squeezeplay;
 
 my $log   = logger('plugin.airplay');
 my $prefs = preferences('plugin.airplay');
 
-my $baseURL = 'http://localhost:6111';
+my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
 
 my $sessions_running = 0;
 
@@ -99,7 +100,7 @@ sub command {
 
         my $params;
         $log->info("AirPlay::Shairplay client '$client->name()', command '$command'");
-        _tx( "$baseURL/$player/control/$command", $callback );
+        _tx( "$baseUrl/$player/control/$command", $callback );
 }
 
 sub jump {
@@ -123,7 +124,7 @@ sub jump {
 sub setClientNotificationState {
         my $client = shift;
 
-        _tx("$baseURL/control/notify");
+        _tx("$baseUrl/control/notify");
 }
 
 sub startNotifications {
@@ -133,7 +134,7 @@ sub startNotifications {
         $retryTimer = $maxRetryTimer if ( $retryTimer > $maxRetryTimer );
 
         $log->info("AirPlay::Shairplay startNotifications retryTimer=$retryTimer, maxRetryTimer=$maxRetryTimer ");
-        my $url = "$baseURL/notifications.json";
+        my $url = "$baseUrl/notifications.json";
         $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
 
         Plugins::AirPlay::Chunked->new()->send_request(
@@ -166,7 +167,7 @@ sub startSession {
         my $id   = $client->id();
         my $name = $client->name();
 
-        my $url = "$baseURL/control/start";
+        my $url = "$baseUrl/control/start";
         $log->info( "AirPlay::Shairplay start session URL='" . $url . "'" );
 
         my $request = HTTP::Request->new( GET => $url );

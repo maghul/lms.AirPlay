@@ -7,6 +7,8 @@ use HTTP::Status qw(RC_OK RC_NOT_FOUND RC_SERVICE_UNAVAILABLE);
 use Slim::Utils::Prefs;
 use Slim::Utils::Log;
 
+use Plugins::AirPlay::Squeezeplay;
+
 use constant EXP_TIME => 60 * 60 * 24 * 7;    # expire in one week
 
 use constant MAX_IMAGE_REQUEST      => 5;     # max images to fetch from spotifyd at once
@@ -17,7 +19,7 @@ my $prefs = preferences('plugin.airplay');
 my $log   = logger('plugin.airplay');
 
 my $resizer = Slim::Utils::Versions->compareVersions( $::VERSION, 7.6 ) < 0 ? "Slim::Utils::ImageResizer" : "Slim::Utils::GDResizer";
-my $baseUrl = "http://localhost:6111";
+my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
 
 eval "use $resizer";
 
