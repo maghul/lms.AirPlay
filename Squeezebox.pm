@@ -11,30 +11,30 @@ use Data::Dumper;
 
 use Slim::Utils::Log;
 
-my $log     = logger('plugin.airplay');
-my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
+my $log           = logger('plugin.airplay');
+my $baseUrl       = Plugins::AirPlay::Squeezeplay::getBaseUrl();
+my $center_volume = 52;
 
-my $client_info;
-
-my $clientinfo = {};
+sub new {
+}
 
 sub initClient {
         my $client = shift;
 
-        $$client_info{$client} = {};
+        $client{airplay} = { name => $client->name() };
 }
 
-sub getinfo {
-        my $client = shift;
-
-        $log->debug( "client=" . $client );
-        $log->debug( "client=" . $client->name() . ", id=" . $client->id() );
-
-        my $id = $client->id();
-        $$clientinfo{$id} = {} if ( !exists $$clientinfo{$id} );
-
-        return $$clientinfo{$id};
-}
+#sub getinfo {
+#	my $client= shift;
+#
+#	$log->debug("client=".$client);
+#	$log->debug("client=".$client->name().", id=".$client->id());
+#
+#	my $id= $client->id();
+#	$$clientinfo{$id} = {} if ( ! exists $$clientinfo{$id} );
+#
+#	return $$clientinfo{$id};
+#}
 
 sub _shutdown_squeezebox {
         $log->warn("Shutting down squeezebox\n");
@@ -74,8 +74,8 @@ sub stop_player {
 sub metaDataProvider {
         my ( $client, $url ) = @_;
 
-        if ( !$$client_info{$client}{metadata} ) {
-                $$client_info{$client}{metadata} = {
+        if ( !$client{airplay}->{metadata} ) {
+                $client{airplay}->{metadata} = {
                         artist => "",
                         album  => "",
 
@@ -83,8 +83,8 @@ sub metaDataProvider {
                         type    => "AirPlay"
                 };
         }
-        print Data::Dump::dump( $$client_info{$client}{metadata} );
-        return $$client_info{$client}{metadata};
+        print Data::Dump::dump( $client{airplay}->{metadata} );
+        return $client{airplay}->{metadata};
 }
 
 sub dmap_lisitingitem_notification {
@@ -108,7 +108,7 @@ sub dmap_lisitingitem_notification {
                 }
         );
 
-        $$client_info{$client}{metadata} = {
+        $client{airplay}->{metadata} = {
                 artist => $$dmap{'daap.songartist'},
                 album  => $$dmap{'daap.songalbum'},
 
@@ -151,9 +151,6 @@ sub squeezebox_to_airplay_volume {
         return -30 + $volume * 30 / 100;
 }
 
-my $sb_volume;
-my $target_volume;
-
 sub between {
         my ( $a, $middle, $b ) = @_;
 
@@ -170,8 +167,6 @@ sub between {
         return 0;
 }
 
-my $center_volume = 52;
-
 sub _volumeCallback {
         $volumeChangePending = 0;
 }
@@ -179,10 +174,10 @@ sub _volumeCallback {
 sub _changeVolume {
         my $client = shift;
 
-        if ( $target_volume && ( $target_volume != $sb_volume ) ) {
+        if ( $client{airplay}->{target_volume} && ( $client{airplay}->{target_volume} != $client{airplay}->{sb_volume} ) ) {
 
-                my $vol = $target_volume < $sb_volume ? "volumedown" : "volumeup";
-                $log->debug("changeVolume:EMH: client=$client, target_volume=$target_volume, sb_volume=$sb_volume ==> $vol\n");
+                my $vol = $client{airplay}->{target_volume} < $client{airplay}->{sb_volume} ? "volumedown" : "volumeup";
+                $log->debug("changeVolume:EMH: client=$client, target_volume=$client{airplay}->{target_volume}, sb_volume=$client{airplay}->{sb_volume} ==> $vol\n");
 
                 #		if ( ! $volumeChangePending ) {
                 #			$volumeChangePending= 1;
@@ -198,10 +193,10 @@ sub _check_volume_reached {
         my $volume      = shift;
         my $prev_volume = shift;
 
-        my $rv = ( $prev_volume > $volume && $volume <= $target_volume )
-          || ( $prev_volume < $volume && $volume >= $target_volume );
+        my $rv = ( $prev_volume > $volume && $volume <= $client{airplay}->{target_volume} )
+          || ( $prev_volume < $volume && $volume >= $client{airplay}->{target_volume} );
 
-        $log->debug("EMH _check_volume_reached target_volume=$target_volume, volume=$volume, prev_volume=$prev_volume --> $rv\n ");
+        $log->debug("EMH _check_volume_reached target_volume=$client{airplay}->{target_volume}, volume=$volume, prev_volume=$prev_volume --> $rv\n ");
 
         return $rv;
 }
@@ -210,21 +205,19 @@ sub setAirPlayDeviceVolume {
         my $client = shift;
         my $volume = shift;
 
-        my $start = !defined $target_volume;
+        my $start = !defined $client{airplay}->{target_volume};
 
-        $target_volume = $volume;
-        $log->debug("EMH setAirPlayDeviceVolume target_volume=$target_volume, start=$start");
+        $client{airplay}->{target_volume} = $volume;
+        $log->debug("EMH setAirPlayDeviceVolume target_volume=$client{airplay}->{target_volume}, start=$start");
         if ($start) {
                 _changeVolume($client);
         }
 }
 
-my $current_direction;
-
 sub _direction_timeout {
         $log->warn("User lifted finger from iPhone\n");
         my $client = shift;
-        $current_direction = 0;
+        $client{airplay}->{current_direction} = 0;
 }
 
 sub relative_volume_notification {
@@ -233,25 +226,25 @@ sub relative_volume_notification {
         my $prev_volume = shift;
 
         $log->debug("EMH volume=$volume, prev_volume=$prev_volume");
-        if ( $volume > $prev_volume && $current_direction >= 0 ) {
+        if ( $volume > $prev_volume && $client{airplay}->{current_direction} >= 0 ) {
                 $log->debug("EMH squeezebox volume +2");
                 $client->execute( [ "mixer", "volume", "+2" ] );
-                $current_direction = 1;
+                $client{airplay}->{current_direction} = 1;
         }
-        if ( $volume < $prev_volume && $current_direction <= 0 ) {
+        if ( $volume < $prev_volume && $client{airplay}->{current_direction} <= 0 ) {
                 $log->debug("EMH squeezebox volume -2");
                 $client->execute( [ "mixer", "volume", "-2" ] );
-                $current_direction = -1;
+                $client{airplay}->{current_direction} = -1;
         }
 
-        $target_volume = 50;
+        $client{airplay}->{target_volume} = 50;
 
-        #	if ( $volume<$target_volume-3 || $volume>$target_volume+3 ) {
-        $log->debug( "EMH target_volume-3=" . ( $target_volume - 3 ) . ", volume=$volume, target_volume+3=" . ( $target_volume + 3 ) );
-        if ( $volume > $target_volume - 3 && $volume < $target_volume + 3 ) {
+        #	if ( $volume<$client{airplay}->{target_volume}-3 || $volume>$client{airplay}->{target_volume}+3 ) {
+        $log->debug( "EMH target_volume-3=" . ( $client{airplay}->{target_volume} - 3 ) . ", volume=$volume, target_volume+3=" . ( $client{airplay}->{target_volume} + 3 ) );
+        if ( $volume > $client{airplay}->{target_volume} - 3 && $volume < $client{airplay}->{target_volume} + 3 ) {
 
-                #	if (between( $volume, $target_volume, $prev_volume )) {
-                undef $target_volume;
+                #	if (between( $volume, $client{airplay}->{target_volume}, $prev_volume )) {
+                undef $client{airplay}->{target_volume};
                 Slim::Utils::Timers::setTimer( $client, Time::HiRes::time() + 0.3, \&_direction_timeout );
                 $log->debug("EMH Done changing volume");
         }
@@ -275,25 +268,25 @@ sub absolute_volume_notification {
         my $volume      = shift;
         my $prev_volume = shift;
 
-        if ( defined $target_volume ) {
-                $log->debug("EMH volume=$volume, target_volume=$target_volume, sb_volume=$sb_volume\n");
+        if ( defined $client{airplay}->{target_volume} ) {
+                $log->debug("EMH volume=$volume, target_volume=$client{airplay}->{target_volume}, sb_volume=$client{airplay}->{sb_volume}\n");
 
-                if ( between( $volume, $target_volume, $prev_volume ) ) {
+                if ( between( $volume, $client{airplay}->{target_volume}, $prev_volume ) ) {
                         $log->debug("------ Done!\n");
 
-                        #			$sb_volume= $new_volume;
-                        undef $target_volume;
+                        #			$client{airplay}->{sb_volume}= $new_volume;
+                        undef $client{airplay}->{target_volume};
                 }
                 else {
                         $log->debug("------ Change Volume!\n");
 
-                        #			$sb_volume= $new_volume;
+                        #			$client{airplay}->{sb_volume}= $new_volume;
                         _changeVolume($client);
                 }
         }
         else {
-                $log->debug("EMH Absolute Mixer volume $sb_volume!");
-                $client->execute( [ "mixer", "volume", $sb_volume ] );
+                $log->debug("EMH Absolute Mixer volume $client{airplay}->{sb_volume}!");
+                $client->execute( [ "mixer", "volume", $client{airplay}->{sb_volume} ] );
         }
 }
 
@@ -311,15 +304,15 @@ sub volume_notification {
         my $client = shift;
         my $volume = shift;
 
-        my $prev_volume = $sb_volume;
-        $sb_volume = airplay_to_squeezebox_volume($volume);
+        my $prev_volume = $client{airplay}->{sb_volume};
+        $client{airplay}->{sb_volume} = airplay_to_squeezebox_volume($volume);
+        $log->debug( "client=" . $client->name() . ", airplay=" . Data::Dump::dump( $client{airplay} ) );
 
-        my $info = getinfo($client);
-        if ( $$info{relative} ) {
-                relative_volume_notification( $client, $sb_volume, $prev_volume );
+        if ( $client{airplay}->{relative} ) {
+                relative_volume_notification( $client, $client{airplay}->{sb_volume}, $prev_volume );
         }
         else {
-                absolute_volume_notification( $client, $sb_volume, $prev_volume );
+                absolute_volume_notification( $client, $client{airplay}->{sb_volume}, $prev_volume );
         }
 
 }
@@ -329,9 +322,11 @@ sub mixerVolumeCallback {
         my $client  = $request->client;
 
         return if !defined $client;
-        $log->debug( "getinfo... client=" . $client );
-        my $info = getinfo($client);
-        if ( $$info{relative} ) {
+
+        #	$log->debug("getinfo... client=".$client);
+        #	my $info= getinfo($client);
+        $log->debug( "client=" . $client->name() . ", airplay=" . Data::Dump::dump( $client{airplay} ) );
+        if ( $client{airplay}->{relative} ) {
                 relativeMixerVolumeCallback( $request, $client );
         }
         else {
@@ -358,10 +353,13 @@ sub externalVolumeInfoCallback {
                         $precise  = 1;
                 }
 
-                $log->debug( "getinfo... client=" . $client );
-                my $info = getinfo($client);
-                $$info{relative} = $relative;
-                $$info{precise}  = $precise;
+                #	    $log->debug("getinfo... client=".$client);
+                #	    my $info= getinfo($client);
+                $client{airplay}->{relative} = $relative;
+                $client{airplay}->{precise}  = $precise;
+                $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$client{airplay}->{relative}, precise=$client{airplay}->{precise}" );
+
+                $log->debug( "client=" . $client->name() . ", airplay=" . Data::Dump::dump( $client{airplay} ) );
         }
 }
 
