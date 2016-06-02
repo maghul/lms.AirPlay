@@ -171,6 +171,17 @@ sub mixerVolumeCallback {
         changeVolume();
 }
 
+sub externalVolumeInfoCallback {
+        my $request = shift;
+        my $client  = $request->client;
+
+        if ($client) {
+                my $relative = $request->getParam('_p1');
+                my $precise  = $request->getParam('_p2');
+                $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$relative, precise=$precise" );
+        }
+}
+
 sub find_client {
         my $id = shift;
 

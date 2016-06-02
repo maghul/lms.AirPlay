@@ -57,6 +57,9 @@ sub initPlugin {
         Slim::Control::Request::subscribe( \&playlistCallback,                                  [ ['playlist'] ] );
         Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback, [ [ 'mixer', 'volume' ] ] );
 
+        #   Check volume control type
+        Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::externalVolumeInfoCallback, [ ['getexternalvolumeinfo'] ] );
+
         Slim::Formats::RemoteMetadata->registerProvider(
                 match => qr/mauree/,
                 func  => \&Plugins::AirPlay::Squeezebox::metaDataProvider
@@ -78,6 +81,8 @@ sub shutdownPlugin {
         Slim::Control::Request::unsubscribe( \&playlistCallback );
 
         Slim::Control::Request::unsubscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback );
+
+        Slim::Control::Request::unsubscribe( \&Plugins::AirPlay::Squeezebox::externalVolumeInfoCallback );
 
         # Remove reroute for all playlist jump requests
         Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, $originalPlaylistJumpCommand ] );
@@ -174,6 +179,9 @@ sub clientConnectCallback {
                 my $subCmd = $request->{'_request'}[1];
 
                 Plugins::AirPlay::Shairplay::setClientNotificationState($client);
+
+                $log->debug("Trying to get external volume info for new player...");
+                Slim::Control::Request::executeRequest( undef, ['getexternalvolumeinfo'] );
 
                 # TODO: Only call this once
                 #				Plugins::AirPlay::Shairplay::startSession( $client->id(), $client->name() );
