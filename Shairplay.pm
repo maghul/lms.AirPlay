@@ -28,15 +28,6 @@ sub asyncCBContentType {
         return 1;
 }
 
-sub start_sessions {
-        if ( !$sessions_running ) {
-                $sessions_running = 1;
-
-                # TODO: Loop through all wanted sessions (players?)
-                startSession( "00:11:22:33:44:55", "Magnus Rum" );
-        }
-}
-
 sub asyncCBContent {
         my $http = shift;
         my $data = shift;
@@ -49,7 +40,7 @@ sub asyncCBContent {
         #    $log->warn(Data::Dump::dump($perl));
 
         Plugins::AirPlay::Squeezebox::notification($perl);
-        start_sessions();
+        startAllSessions();
         return 1;
 }
 
@@ -163,6 +154,16 @@ sub startSession {
         $request->header( "airplay-session-id",   $id );
         $request->header( "airplay-session-name", $name );
         Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
+}
+
+sub startAllSessions {
+        if ( !$sessions_running ) {
+                $sessions_running = 1;
+                foreach my $client ( Slim::Player::Client::clients() ) {
+                        $log->debug( "Start Session client name=" . $client->name() . ", id=" . $client->id() );
+                        startSession( $client->id(), $client->name() );
+                }
+        }
 }
 
 1;
