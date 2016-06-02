@@ -27,8 +27,11 @@ sub asyncCBContentType {
 
 sub asyncCBContent {
         my $http = shift;
+        my $data = shift;
+        $$data{RetryTimer} = 1;
         my $html = $http->response->content();
         $log->warn( Data::Dump::dump($html) );
+        $log->warn( Data::Dump::dump($data) );
         my $perl = decode_json($html);
 
         #    $log->warn(Data::Dump::dump($perl));
