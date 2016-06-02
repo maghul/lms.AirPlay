@@ -112,6 +112,22 @@ sub squeezebox_to_airplay_volume {
 my $sb_volume;
 my $target_volume;
 
+sub between {
+        my ( $a, $middle, $b ) = @_;
+
+        if ( $a <= $middle && $middle <= $b ) {
+                $log->debug("between... $a <= $middle <= $b\n");
+                return 1;
+        }
+        if ( $a >= $middle && $middle >= $b ) {
+                $log->debug("between... $a >= $middle >= $b\n");
+                return 1;
+        }
+
+        $log->debug("NOT between... $a .. $middle .. $b\n");
+        return 0;
+}
+
 sub volume_notification {
         my $volume = shift;
 
@@ -124,23 +140,26 @@ sub volume_notification {
         if ( defined $target_volume ) {
                 $log->debug("new_volume=$new_volume, target_volume=$target_volume, sb_volume=$sb_volume\n");
 
-                if (       ( $new_volume <= $target_volum && $target_volume <= $sb_volume )
-                        || ( $new_volume <= $target_volum && $target_volume <= $sb_volume ) )
-                {
-                        undefine $target_volume;
+                if ( between( $new_volume, $target_volume, $sb_volume ) ) {
+                        $log->debug("------ Done!\n");
+                        $sb_volume = $new_volume;
+                        undef $target_volume;
                 }
                 else {
+                        $log->debug("------ Change Volume!\n");
+                        $sb_volume = $new_volume;
                         changeVolume();
                 }
         }
         else {
                 $client->execute( [ "mixer", "volume", $sb_volume ] );
         }
-        $sb_volume = $new_volume;
 }
 
 sub changeVolume {
         if ($target_volume) {
+                $log->debug("changeVolume: target_volume=$target_volume, sb_volume=$sb_volume\n");
+
                 my $vol = $target_volume < $sb_volume ? "volumedown" : "volumeup";
                 Plugins::AirPlay::Shairplay::command($vol);
         }
@@ -158,7 +177,7 @@ sub mixerVolumeCallback {
 
         $log->debug("mixer volume=$volume");
 
-        $target_volume = $volume;
+        $target_volume = $volume + 0;
         changeVolume();
 }
 
