@@ -475,7 +475,9 @@ sub _http_read_body {
                 $self->response->content($buf);
                 if ( my $cb = $args->{onBody} ) {
                         my $passthrough = $args->{passthrough} || [];
-                        return $cb->( $self, @{$passthrough} );
+                        $cb->( $self, @{$passthrough} );
+                        _http_read_body( $socket, $self, $args );
+                        return;
                 }
         }
         else {
