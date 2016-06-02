@@ -77,10 +77,14 @@ sub asyncConnect {
         startAllSessions();
 }
 
+sub nop_callback {
+        $log->debug("nop_callback...");
+}
+
 sub _tx {
-        my $url      = shift;
-        my $callback = shift;
-        $log->info( "EMH tx URL='" . $url . "'" );
+        my $url = shift;
+        my $callback = shift || \&nop_callback;
+        $log->info("EMH tx URL='$url', callback='$callback'");
 
         Slim::Networking::SimpleAsyncHTTP->new( $callback, $callback )->get($url);
 
