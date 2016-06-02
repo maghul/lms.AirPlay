@@ -42,9 +42,12 @@ sub asyncCBContent {
                 }
         }
 
-        $log->warn( Data::Dump::dump($data) );
+##    $log->warn(Data::Dump::dump($data));
         eval {
                 my $perl = decode_json($html);
+                my $dump = Data::Dump::dump($perl);
+                $dump =~ s/\n/\n                                                                          RX:/g;
+                $log->debug( "RX: " . $dump );
                 Plugins::AirPlay::Squeezebox::notification($perl);
         };
 
