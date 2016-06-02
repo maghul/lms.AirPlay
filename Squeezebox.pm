@@ -22,6 +22,7 @@ sub initClient {
         my $client = shift;
 
         $client{airplay} = { name => $client->name() };
+        $log->debug( "client=" . $client->name() . ", airplay=" . Data::Dump::dump( $client{airplay} ) );
 }
 
 #sub getinfo {
@@ -147,86 +148,15 @@ sub setAirPlayDeviceVolume {
         Plugins::AirPlay::Shairplay::command( $client, "volume/$volume" );
 }
 
-sub relative_volume_notification {
-        my $client      = shift;
-        my $volume      = shift;
-        my $prev_volume = shift;
-
-        $log->debug("EMH volume=$volume, prev_volume=$prev_volume");
-        if ( $volume > $prev_volume && $client{airplay}->{current_direction} >= 0 ) {
-                $log->debug("EMH squeezebox volume +2");
-                $client->execute( [ "mixer", "volume", "+2" ] );
-                $client{airplay}->{current_direction} = 1;
-        }
-        if ( $volume < $prev_volume && $client{airplay}->{current_direction} <= 0 ) {
-                $log->debug("EMH squeezebox volume -2");
-                $client->execute( [ "mixer", "volume", "-2" ] );
-                $client{airplay}->{current_direction} = -1;
-        }
-
-        setAirplayDeviceVolume( $client, 50 );
-
-        #	}
-}
-
-sub relativeMixerVolumeCallback {
-        my $request = shift;
-        my $client  = $request->client;
-
-        #	setAirPlayDeviceVolume($client, 50);
-}
-
-sub absolute_volume_notification {
-        my $client      = shift;
-        my $volume      = shift;
-        my $prev_volume = shift;
-
-        if ( defined $client{airplay}->{target_volume} ) {
-                $log->debug("EMH volume=$volume, target_volume=$client{airplay}->{target_volume}, sb_volume=$client{airplay}->{sb_volume}\n");
-
-                if ( between( $volume, $client{airplay}->{target_volume}, $prev_volume ) ) {
-                        $log->debug("------ Done!\n");
-
-                        #			$client{airplay}->{sb_volume}= $new_volume;
-                        undef $client{airplay}->{target_volume};
-                }
-                else {
-                        $log->debug("------ Change Volume!\n");
-
-                        #			$client{airplay}->{sb_volume}= $new_volume;
-                        _changeVolume($client);
-                }
-        }
-        else {
-                $log->debug("EMH Absolute Mixer volume $client{airplay}->{sb_volume}!");
-                $client->execute( [ "mixer", "volume", $client{airplay}->{sb_volume} ] );
-        }
-}
-
-sub absoluteMixerVolumeCallback {
-        my $request = shift;
-        my $client  = $request->client;
-
-        my $volume = $client->volume();
-
-        $log->debug("EMH: mixer volume=$volume");
-        setAirPlayDeviceVolume( $client, $volume + 0 );
-}
-
 sub volume_notification {
         my $client = shift;
         my $volume = shift;
 
-        my $prev_volume = $client{airplay}->{sb_volume};
-        $client{airplay}->{sb_volume} = $volume;
-        $log->debug( "client=" . $client->name() . ", airplay=" . Data::Dump::dump( $client{airplay} ) );
+        #    	my $prev_volume= $client{airplay}->{sb_volume};
+        #    	$client{airplay}->{sb_volume}= $volume;
+        $log->debug( "client=" . $client->name() . ", volume='$volume', airplay=" . Data::Dump::dump( $client{airplay} ) );
 
-        if ( $client{airplay}->{relative} ) {
-                relative_volume_notification( $client, $client{airplay}->{sb_volume}, $prev_volume );
-        }
-        else {
-                absolute_volume_notification( $client, $client{airplay}->{sb_volume}, $prev_volume );
-        }
+        $client->execute( [ "mixer", "volume", $volume ] );
 
 }
 
@@ -240,17 +170,17 @@ sub mixerVolumeCallback {
         #	my $info= getinfo($client);
         $log->debug( "client=" . $client->name() . ", airplay=" . Data::Dump::dump( $client{airplay} ) );
         if ( $client{airplay}->{relative} ) {
-                relativeMixerVolumeCallback( $request, $client );
+                setAirPlayDeviceVolume( $client, "relative" );
         }
         else {
-                absoluteMixerVolumeCallback( $request, $client );
+                setAirPlayDeviceVolume( $client, $volume + 0 );
         }
 }
 
 # TODO: We should get the callback when prefs are changed but that doesn't seem to happen...
 sub externalVolumeInfoCallback {
         my $request = shift;
-        my $client  = $request->client;
+        $client = $request->client;
 
         if ($client) {
                 my $relative = $request->getParam('_p1');
@@ -258,22 +188,22 @@ sub externalVolumeInfoCallback {
                 $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$relative, precise=$precise" );
 
                 if ( defined $relative ) {
-                        $relative = 1;
-                        $precise  = 0;
-                }
-                else {
-                        $relative = 0;
-                        $precise  = 1;
+                        setAirPlayDeviceVolume( $client, "relative" );
                 }
 
-                #	    $log->debug("getinfo... client=".$client);
-                #	    my $info= getinfo($client);
                 $client{airplay}->{relative} = $relative;
                 $client{airplay}->{precise}  = $precise;
                 $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$client{airplay}->{relative}, precise=$client{airplay}->{precise}" );
 
                 $log->debug( "client=" . $client->name() . ", airplay=" . Data::Dump::dump( $client{airplay} ) );
         }
+}
+
+sub send_volume_control_state {
+        $client = shift;
+        $log->debug( "client=" . $client->name() . ", volume='$volume', airplay=" . Data::Dump::dump( $client{airplay} ) );
+        $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$client{airplay}->{relative}, precise=$client{airplay}->{precise}" );
+        setAirPlayDeviceVolume( $client, ( defined $client{airplay}->{relative} ) ? "relative" : "absolute" );
 }
 
 sub find_client {

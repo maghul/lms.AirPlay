@@ -205,6 +205,7 @@ sub startAllSessions {
                         $log->debug( "Start Session client name=" . $client->name() . ", id=" . $client->id() );
                         Plugins::AirPlay::Squeezebox::initClient($client);
                         startSession($client);
+                        Plugins::AirPlay::Squeezebox::send_volume_control_state($client);
                 }
         }
 }
