@@ -84,6 +84,17 @@ sub dmap_lisitingitem_notification {
         };
 
         $log->debug( "Playing info: " . Data::Dump::dump($obj) );
+
+}
+
+sub volume_notification {
+        my $volume = shift;
+
+        $log->debug("Volume=$volume\n");
+        my $client = get_client();
+        my $sb_volume = 100 + ( $volume * 100.0 / 30.0 );
+        $sb_volume = 0 if ( $sb_volume < 0 );
+        $client->execute( [ "mixer", "volume", $sb_volume ] );
 }
 
 sub notification {
@@ -93,6 +104,9 @@ sub notification {
 
         my $dmap = $$notification{"dmap.listingitem"};
         dmap_lisitingitem_notification($dmap) if ($dmap);
+
+        my $volume = $$notification{"volume"};
+        volume_notification($volume) if ( defined $volume );
 }
 
 1;
