@@ -56,6 +56,11 @@ sub initPlugin {
         Slim::Control::Request::subscribe( \&pauseCallback,    [ ['play'] ] );
         Slim::Control::Request::subscribe( \&playlistCallback, [ ['playlist'] ] );
 
+        Slim::Formats::RemoteMetadata->registerProvider(
+                match => qr/mauree/,
+                func  => \&Plugins::AirPlay::Squeezebox::metaDataProvider
+        );
+
         # Reroute all playlist jump requests
         $originalPlaylistJumpCommand =
           Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, \&playlistJumpCommand ] );

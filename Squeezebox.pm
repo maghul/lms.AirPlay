@@ -42,6 +42,15 @@ sub stop_player() {
         }
 }
 
+local $metadata;
+
+sub metaDataProvider {
+        my ( $client, $url ) = @_;
+
+        print Data::Dump::dump($metadata);
+        return $metadata;
+}
+
 sub notification {
         my ($notification) = @_;
 
@@ -61,9 +70,18 @@ sub notification {
                         coverurl => "airplayimage/whatever/cover.$itemid.jpg",
                         tracknum => $$dmap{'daap.songtracknumber'},
                         bitrate  => 44100,
-                        type     => "AirPlay"
                 }
         );
+
+        $metadata = {
+                artist => $$dmap{'daap.songartist'},
+                album  => $$dmap{'daap.songalbum'},
+
+                coverurl => "airplayimage/whatever/cover.$itemid.jpg",
+                tracknum => $$dmap{'daap.songtracknumber'},
+                bitrate  => 44100,
+                type     => "AirPlay"
+        };
 
         $log->debug( "Playing info: " . Data::Dump::dump($obj) );
 
