@@ -23,7 +23,7 @@ my $log = logger('plugin.airplay');
 
 __PACKAGE__->mk_accessor(
         rw => qw(
-          uri request response saveAs fh timeout maxRedirect buffer
+          uri request response saveAs fh timeout maxRedirect buffer content_parser
           )
 );
 
@@ -68,7 +68,7 @@ sub _format_request {
 
         my $fullpath = $self->request->uri->path_query;
 
-        $self->socket->set( "content_parser", \&_parse_header );
+        $self->content_parser( \&_parse_header );
 
         $self->socket->http_version('1.1');
 
@@ -99,7 +99,7 @@ sub _parse_header {
 
                 #		$log->error("parse header DONE" );
                 $self->response( HTTP::Response->new( 200, "Hunky Dory" ) );
-                $self->socket->set( "content_parser", \&_parse_chunk );
+                $self->content_parser( \&_parse_chunk );
                 if ( my $cb = $args->{onConnect} ) {
                         my $passthrough = $args->{passthrough} || [];
                         $cb->( $self, @{$passthrough} );
@@ -195,7 +195,7 @@ sub _http_read {
 
                 my $sp;
                 do {
-                        my $parser = $self->socket->get("content_parser");
+                        my $parser = $self->content_parser();
 
                         #			$log->error("Parsed parser=$parser" );
 
