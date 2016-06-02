@@ -187,7 +187,6 @@ sub _http_read {
 
                 #		$log->error("Read n=$n" );
                 #		$log->error("Read bufsize=$bufsize" );
-                $log->debug("Read buf=$buf");
 
                 if ( $n == 0 ) {
                         $self->_disconnect($args);
@@ -201,13 +200,12 @@ sub _http_read {
                         #			$log->error("Parsed parser=$parser" );
 
                         $sp = &$parser( $self, $buf, $bufsize, $args );
-
-                        #			$log->error("Parsed sp=$sp" );
-                        $buf = substr( $buf, $sp );
-                        $bufsize -= $sp;
+                        if ( $sp > 0 ) {
+                                $buf = substr( $buf, $sp );
+                                $bufsize -= $sp;
+                        }
 
                         #			$log->error("Parsed buf=$buf" );
-                        #			$log->error("Parsed bufsize=$bufsize" );
                 } until ( $sp == 0 || $bufsize == 0 );
 
         }
