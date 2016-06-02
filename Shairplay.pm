@@ -129,7 +129,9 @@ sub jump {
         my $client = shift;
         my $index  = shift;
         if ( $index != 0 ) {
+                command( $client, "pause" );
                 command( $client, $index > 0 ? "nextitem" : "previtem" );
+                command( $client, "playresume" );
         }
 }
 
