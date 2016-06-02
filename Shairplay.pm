@@ -10,7 +10,7 @@ use JSON::XS::VersionOneAndTwo;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Slim::Utils::Strings qw(string cstring);
-use Plugins::AirPlay::HTTP;
+use Plugins::AirPlay::Chunked;
 use Plugins::AirPlay::Squeezebox;
 
 my $log   = logger('plugin.airplay');
@@ -68,7 +68,7 @@ sub _tx {
         my $url = shift;
         $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
 
-        Plugins::AirPlay::HTTP->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
+        Plugins::AirPlay::Chunked->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
 
 }
 
@@ -111,7 +111,7 @@ sub startNotifications {
         my $url = "$baseURL/notifications.json";
         $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
 
-        Plugins::AirPlay::HTTP->new()->send_request(
+        Plugins::AirPlay::Chunked->new()->send_request(
                 {
                         'request'      => HTTP::Request->new( GET => $url ),
                         'onBody'       => \&asyncCBContent,
