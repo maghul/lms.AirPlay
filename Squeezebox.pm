@@ -36,6 +36,18 @@ sub getinfo {
         return $$clientinfo{$id};
 }
 
+sub _shutdown_squeezebox {
+        $log->warn("Shutting down squeezebox\n");
+        my $client = shift;
+
+        #    my $url= shift;
+
+        #    if ( $url eq current-song ) {
+        $client->execute( [ "power", "0" ] );
+
+        #    }
+}
+
 sub start_player {
         $log->warn("START AirPlay squeezebox\n");
         my $client = shift;
@@ -45,6 +57,7 @@ sub start_player {
                 $log->warn("STARTING AirPlay play\n");
                 $client->execute( [ "playlist", "play", "$baseUrl/$client_id/audio.pcm" ] );
         }
+        Slim::Utils::Timers::killTimers( $client, \&_shutdown_squeezebox );
 }
 
 sub stop_player {
@@ -53,6 +66,8 @@ sub stop_player {
         if ($client) {
                 $log->warn("STOPPING AirPlay play\n");
                 $client->execute( ["stop"] );
+                my $timeout = 20;
+                Slim::Utils::Timers::setTimer( $client, Time::HiRes::time() + $timeout, \&_shutdown_squeezebox );
         }
 }
 
