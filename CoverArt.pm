@@ -105,6 +105,8 @@ sub handler {
 sub _fetch {
         my $entry;
 
+        my $id = "00:11:22:33:44:55";    # TODO: Get the real id
+
         while ( !$entry && @fetchQ ) {
 
                 $entry = shift @fetchQ;
@@ -130,7 +132,7 @@ sub _fetch {
 
         $fetching{ $entry->{'id'} } = $entry;
 
-        Slim::Networking::SimpleAsyncHTTP->new( \&_gotImage, \&_gotError, $entry )->get("http://mauree:6111/whatever/cover.jpg");
+        Slim::Networking::SimpleAsyncHTTP->new( \&_gotImage, \&_gotError, $entry )->get("http://mauree:6111/$id/cover.jpg");
 }
 
 sub _gotImage {

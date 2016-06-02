@@ -27,7 +27,7 @@ sub get_client() {
 sub start_player() {
         $log->warn("START AirPlay squeezebox\n");
         my $client      = get_client();
-        my $client_name = "whatever";
+        my $client_name = "00:11:22:33:44:55";    # TODO Use the real id
 
         if ($client) {
                 $log->warn("STARTING AirPlay play\n");
@@ -63,11 +63,11 @@ sub metaDataProvider {
 }
 
 sub dmap_lisitingitem_notification {
-        my ($notification) = @_;
+        my $dmap = shift;
 
-        $log->warn( "\nNotification\n" . Data::Dump::dump($notification) . "\nNotification\n" );
+        my $id = "00:11:22:33:44:55";    # TODO: Get the real Id
 
-        my $trackurl = "http://mauree:6111/whatever/audio.pcm";
+        my $trackurl = "http://mauree:6111/$id/audio.pcm";
         Slim::Music::Info::setRemoteMetadata( $trackurl, { title => $$dmap{'dmap.itemname'}, } );
         my $itemid = $$dmap{'dmap.persistentid'};
         my $obj    = Slim::Schema::RemoteTrack->updateOrCreate(
@@ -78,7 +78,7 @@ sub dmap_lisitingitem_notification {
                         album  => $$dmap{'daap.songalbum'},
 
                         #		secs    => $track->{'duration'} / 1000,
-                        coverurl => "airplayimage/whatever/cover.$itemid.jpg",
+                        coverurl => "airplayimage/$id/cover.$itemid.jpg",
                         tracknum => $$dmap{'daap.songtracknumber'},
                         bitrate  => 44100,
                 }
@@ -88,7 +88,7 @@ sub dmap_lisitingitem_notification {
                 artist => $$dmap{'daap.songartist'},
                 album  => $$dmap{'daap.songalbum'},
 
-                coverurl => "airplayimage/whatever/cover.$itemid.jpg",
+                coverurl => "airplayimage/$id/cover.$itemid.jpg",
                 tracknum => $$dmap{'daap.songtracknumber'},
                 bitrate  => 44100,
                 type     => "AirPlay"
