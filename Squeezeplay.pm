@@ -23,10 +23,11 @@ sub logFile {
 
 sub start {
         my $helper = "squeezeplay";
-        my $keyPath = Slim::Utils::Misc::findbin("airport.key") || do {
-                $log->debug("helper app: airport.key not found");
-                return;
-        };
+
+        #    my $keyPath = Slim::Utils::Misc::findbin("airport.key") || do {
+        #	$log->debug("helper app: airport.key not found");
+        #	return;
+        #    };
         my $helperName = Slim::Utils::Misc::findbin($helper) || do {
                 $log->debug("helper app: $helper not found");
 
@@ -39,13 +40,14 @@ sub start {
         my $helperPath = Slim::Utils::OSDetect::getOS->decodeExternalHelperPath($helperName);
         my $logfile    = logFile();
 
-        $log->info("starting $helperPath -k $keyPath -l $logfile");
-
         $squeezeplay = undef;
+        my $cmd = $helperPath;
+        $log->info("starting $cmd");
 
-        #    my $cmd= $helperPath."_debug";
-        #    eval { $squeezeplay = Proc::Background->new({ 'die_upon_destroy' => 1 }, $cmd ); };
-        eval { $squeezeplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $helperPath, "-k", $keyPath, "-l", $logfile ); };
+        eval { $squeezeplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $cmd ); };
+        $log->info("started $cmd $squeezeplay");
+
+        #    eval { $squeezeplay = Proc::Background->new({ 'die_upon_destroy' => 1 }, $helperPath, "-k", $keyPath, "-l", $logfile); };
 
 }
 
@@ -64,7 +66,9 @@ my $baseurl;
 
 sub getBaseUrl() {
         if ( !defined $baseurl ) {
-                my $hostname = Slim::Utils::Network::hostAddr();
+
+                #		my $hostname= Slim::Utils::Network::hostAddr();
+                my $hostname = "10.223.10.35";
                 $baseurl = "http://$hostname:6111";
         }
         return $baseurl;
