@@ -93,13 +93,14 @@ sub _tx {
 }
 
 sub command {
-        my $client  = shift;
-        my $command = shift;
-        my $player  = $client->id();
+        my $client   = shift;
+        my $command  = shift;
+        my $callback = shift;
+        my $player   = $client->id();
 
         my $params;
         $log->info("AirPlay::Shairplay client '$client->name()', command '$command'");
-        _tx("$baseURL/$player/control/$command");
+        _tx( "$baseURL/$player/control/$command", $callback );
 }
 
 sub jump {

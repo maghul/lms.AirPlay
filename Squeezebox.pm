@@ -122,59 +122,164 @@ sub between {
         return 0;
 }
 
-sub volume_notification {
-        my $client = shift;
-        my $volume = shift;
+my $center_volume = 52;
 
-        $log->debug("Volume=$volume\n");
-
-        my $new_volume = airplay_to_squeezebox_volume($volume);
-        $new_volume = 0 if ( $sb_volume < 0 );
-
-        if ( defined $target_volume ) {
-                $log->debug("new_volume=$new_volume, target_volume=$target_volume, sb_volume=$sb_volume\n");
-
-                if ( between( $new_volume, $target_volume, $sb_volume ) ) {
-                        $log->debug("------ Done!\n");
-                        $sb_volume = $new_volume;
-                        undef $target_volume;
-                }
-                else {
-                        $log->debug("------ Change Volume!\n");
-                        $sb_volume = $new_volume;
-                        changeVolume($client);
-                }
-        }
-        else {
-                $client->execute( [ "mixer", "volume", $sb_volume ] );
-        }
+sub _volumeCallback {
+        $volumeChangePending = 0;
 }
 
-sub changeVolume {
+sub _changeVolume {
         my $client = shift;
 
         if ($target_volume) {
-                $log->debug("changeVolume: target_volume=$target_volume, sb_volume=$sb_volume\n");
-
                 my $vol = $target_volume < $sb_volume ? "volumedown" : "volumeup";
-                Plugins::AirPlay::Shairplay::command( $client, $vol );
+                $log->debug("changeVolume:EMH: client=$client, target_volume=$target_volume, sb_volume=$sb_volume ==> $vol\n");
+
+                #		if ( ! $volumeChangePending ) {
+                #			$volumeChangePending= 1;
+                Plugins::AirPlay::Shairplay::command( $client, $vol, \&_volumeCallback );
+
+                #		}
         }
 }
 
-sub mixerVolumeCallback {
+sub _check_volume_reached {
+
+        # Check if the target volume has been passed.
+        my $volume      = shift;
+        my $prev_volume = shift;
+
+        my $rv = ( $prev_volume > $volume && $volume <= $target_volume )
+          || ( $prev_volume < $volume && $volume >= $target_volume );
+
+        $log->debug("EMH _check_volume_reached target_volume=$target_volume, volume=$volume, prev_volume=$prev_volume --> $rv\n ");
+
+        return $rv;
+}
+
+sub relative_volume_notification {
+        my $client      = shift;
+        my $volume      = shift;
+        my $prev_volume = shift;
+
+        if ( $volume > 90 ) {
+                $log->debug("EMH Relative Mixer volume up!");
+                $client->execute( [ "mixer", "volume", "+2" ] );
+        }
+        elsif ( $volume < 10 ) {
+                $log->debug("EMH Relative Mixer volume down!");
+                $client->execute( [ "mixer", "volume", "-2" ] );
+        }
+        else {
+                $log->debug("EMH Relative Mixer volume !");
+        }
+
+        #	if ( $target_volume ) {
+        $target_volume = 50;
+        if ( $volume < $target_volume - 3 || $volume > $target_volume + 3 ) {
+
+                #	if ( ! between( $volume,$target_volume,$prev_volume) ) {
+                _changeVolume($client);
+        }
+
+        #	} else {
+        #		setAirPlayDeviceVolume($client, 50);
+        #	}
+}
+
+sub relativeMixerVolumeCallback {
         my $request = shift;
         my $client  = $request->client;
 
+        setAirPlayDeviceVolume( $client, 50 );
+}
+
+sub absolute_volume_notification {
+        my $client = shift;
+        my $volume = shift;
+
+}
+
+sub volume_notification {
+        my $client   = shift;
+        my $volume   = shift;
+        my $relative = 1;
+
+        my $prev_volume = $sb_volume;
+        $sb_volume = airplay_to_squeezebox_volume($volume);
+
+        relative_volume_notification( $client, $sb_volume, $prev_volume );
+
+        #	$log->debug( "Volume=$volume\n" );
+        #	$volumeChangePending= 0;
+        #
+        #	my $new_volume= airplay_to_squeezebox_volume($volume);
+        #	$new_volume=0 if ($sb_volume<0);
+        #	if ( $relative ) {
+        #		if ( $new_volume>90 ) {
+        #			$log->debug( "EMH Relative Mixer volume up!" );
+        #			$client->execute( [ "mixer", "volume", "+2" ] );
+        #		} elsif ( $new_volume<10 ) {
+        #			$log->debug( "EMH Relative Mixer volume down!" );
+        #			$client->execute( [ "mixer", "volume", "-2" ] );
+        #		} else {
+        #			$log->debug( "EMH Relative Mixer volume !" );
+        #		}
+        #	}
+        #
+        #	if ( defined $target_volume ) {
+        #		$log->debug( "EMH new_volume=$new_volume, target_volume=$target_volume, sb_volume=$sb_volume\n" );
+        #
+        #		if (between( $new_volume, $target_volume, $sb_volume )) {
+        #		        $log->debug( "------ Done!\n" );
+        #			$sb_volume= $new_volume;
+        #			undef $target_volume;
+        #		} else {
+        #		        $log->debug( "------ Change Volume!\n" );
+        #			$sb_volume= $new_volume;
+        #			_changeVolume($client);
+        #		}
+        #	} elsif ( ! $relative ) {
+        #		$log->debug( "EMH Absolute Mixer volume $sb_volume!" );
+        #		$client->execute( [ "mixer", "volume", $sb_volume ] );
+        #	}
+}
+
+sub setAirPlayDeviceVolume {
+        my $client = shift;
+        my $volume = shift;
+
+        my $start = !defined $target_volume;
+
+        $target_volume = $volume;
+        $log->debug("EMH setAirPlayDeviceVolume target_volume=$target_volume, start=$start");
+
+        #	if ( $start ) {
+        _changeVolume($client);
+
+        #	}
+}
+
+sub mixerVolumeCallback {
+        my $request  = shift;
+        my $client   = $request->client;
+        my $relative = 1;
+
         return if !defined $client;
+        relativeMixerVolumeCallback( $request, $client );
 
-        # TODO: Check if it running airplay.
-
-        my $volume = $client->volume();
-
-        $log->debug("mixer volume=$volume");
-
-        $target_volume = $volume + 0;
-        changeVolume();
+        #	return if defined $target_volume;
+        #
+        #	# TODO: Check if it running airplay.
+        #
+        #        my $volume= $client->volume();
+        #
+        #	$log->debug("EMH: mixer volume=$volume");
+        #	if ( $relative ) {
+        #		setAirPlayDeviceVolume( $client, $center_volume );
+        #	} else {
+        #		setAirPlayDeviceVolume( $client, $volume+0 );
+        #	}
 }
 
 sub externalVolumeInfoCallback {
