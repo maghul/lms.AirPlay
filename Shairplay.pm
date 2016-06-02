@@ -78,10 +78,17 @@ sub asyncConnect {
 }
 
 sub _tx {
-        my $url = shift;
-        $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
+        my $url      = shift;
+        my $callback = shift;
+        $log->info( "EMH tx URL='" . $url . "'" );
 
-        Slim::Networking::Async::HTTP->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
+        Slim::Networking::SimpleAsyncHTTP->new( $callback, $callback )->get($url);
+
+        #    Slim::Networking::Async::HTTP->new()->send_request( {
+        #	'request'     => HTTP::Request->new( GET => $url ),
+        #	'onBody' => $callback,
+        #	'onError' => $callback,
+        #    } );
 
 }
 
