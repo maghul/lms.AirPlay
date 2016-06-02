@@ -14,10 +14,24 @@ my $log = logger('plugin.airplay');
 
 my $client_info;
 
+my $clientinfo = {};
+
 sub initClient {
         my $client = shift;
 
         $$client_info{$client} = {};
+}
+
+sub getinfo {
+        my $client = shift;
+
+        $log->debug( "client=" . $client );
+        $log->debug( "client=" . $client->name() . ", id=" . $client->id() );
+
+        my $id = $client->id();
+        $$clientinfo{$id} = {} if ( !exists $$clientinfo{$id} );
+
+        return $$clientinfo{$id};
 }
 
 sub start_player {
