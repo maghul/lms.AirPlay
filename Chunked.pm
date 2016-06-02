@@ -142,7 +142,11 @@ sub _parse_chunk {
 
                 if ( my $cb = $args->{onBody} ) {
                         my $passthrough = $args->{passthrough} || [];
-                        $self->response->content($chunk);
+                        eval { $self->response->content($chunk); };
+
+                        if ($@) {
+                                $log->error("Exception in chunked content handler: $@");
+                        }
                         $cb->( $self, @{$passthrough} );
                 }
 
@@ -210,8 +214,7 @@ sub _http_read {
                                 $buf = substr( $buf, $sp );
                                 $bufsize -= $sp;
                         }
-
-                        #			$log->error("Parsed buf=$buf" );
+                        $log->error("Parsed sp=$sp, bufsize=$bufsize, buf=$buf");
                 } until ( $sp == 0 || $bufsize == 0 );
 
         }
