@@ -82,6 +82,11 @@ sub _http_error {
         my ( $self, $error, $args ) = @_;
 
         $log->error("Error: [$error]");
+
+        if ( my $cb = $args->{onDisconnect} ) {
+                my $passthrough = $args->{passthrough} || [];
+                $cb->( $self, @{$passthrough} );
+        }
 }
 
 sub _parse_header {
@@ -143,6 +148,22 @@ sub _parse_chunk {
         return 0;
 }
 
+sub _disconnect {
+        my ( $self, $args ) = @_;
+
+        # headers complete, remove ourselves from select loop
+        Slim::Networking::Select::removeError( $self->socket );
+        Slim::Networking::Select::removeRead( $self->socket );
+        Slim::Networking::Select::removeWrite( $self->socket );
+
+        close( $self->socket );
+
+        if ( my $cb = $args->{onDisconnect} ) {
+                my $passthrough = $args->{passthrough} || [];
+                $cb->( $self, @{$passthrough} );
+        }
+}
+
 sub _http_read {
         my ( $self, $args ) = @_;
         $log->error("Read");
@@ -160,6 +181,11 @@ sub _http_read {
                 $log->error("Read n=$n");
                 $log->error("Read bufsize=$bufsize");
                 $log->error("Read buf=$buf");
+
+                if ( $n == 0 ) {
+                        $self->_disconnect($args);
+                        return;
+                }
 
                 my $sp;
                 do {
