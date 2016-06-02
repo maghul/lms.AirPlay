@@ -169,6 +169,13 @@ sub _disconnect {
         }
 }
 
+sub _sysread {
+
+        #    my( $self, $socket, $buf, $size, $offset )= @_;
+        my $self = shift;
+        return sysread( $_[0], $_[1], $_[2], $_[3] );
+}
+
 sub _http_read {
         my ( $self, $args ) = @_;
 
@@ -177,7 +184,7 @@ sub _http_read {
         my $buf     = $self->socket->get("buf");
         my $bufsize = $self->socket->get("bufsize");
         while (1) {
-                my $n = sysread( $self->socket, $buf, 10000, $bufsize );
+                my $n = $self->_sysread( $self->socket, $buf, 10000, $bufsize );
                 if ( !defined $n ) {
                         $self->socket->set( "buf",     $buf );
                         $self->socket->set( "bufsize", $bufsize );
