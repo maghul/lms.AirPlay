@@ -92,20 +92,22 @@ sub _http_error {
 sub _parse_header {
         my ( $self, $buf, $bufsize, $args ) = @_;
 
-        #	$log->error("_parser_chunk: buf=$buf" );
+        $log->error("_parser_chunk: buf=$buf");
 
         #	$log->error("parse header" );
         if ( $buf =~ /\r\n\r\n/ ) {
-
-                #		$log->error("parse header DONE" );
+                $log->error("parse header DONE");
                 $self->response( HTTP::Response->new( 200, "Hunky Dory" ) );
+                print "SELF IS $self\n";
                 $self->content_parser( \&_parse_chunk );
                 if ( my $cb = $args->{onConnect} ) {
                         my $passthrough = $args->{passthrough} || [];
                         $cb->( $self, @{$passthrough} );
                 }
 
-                return index( $buf, "\r\n\r\n" ) + 4;
+                my $rv = index( $buf, "\r\n\r\n" ) + 4;
+                print "RV:$rv\n";
+                return $rv;
         }
         return 0;
 
@@ -114,31 +116,32 @@ sub _parse_header {
 sub _parse_chunk {
         my ( $self, $buf, $bufsize, $args ) = @_;
 
-        #	$log->error("_parser_chunk: buf=$buf" );
+        #	$log->error("_parser_chunk: buf='$buf'" );
         my $eol = index( $buf, "\r\n" );
+        print("EOL= $eol\n");
         if ( $eol <= 0 ) {
                 return 0;
         }
         my $chunk_line = substr( $buf, 0, $eol );
-
-        #	$log->error("Read chunk_line=$chunk_line" );
         my $chunk_len = $chunk_line;
         $chunk_len =~ s/;.*//;    # ignore potential chunk parameters
 
-        #	$log->error("Read chunk_len=$chunk_len" );
+        #	$log->error("Read chunk_len='$chunk_len'" );
         unless ( $chunk_len =~ /^([\da-fA-F]+)\s*$/ ) {
                 $self->_http_error( "Bad chunk-size in HTTP response: $buf", $args );
                 return 0;
         }
         my $chunk_size = hex($1);
 
-        #	$log->error("Read chunk_size=$chunk_size" );
+        #	$log->error("Read chunk_size=$chunk_size, bufsize=$bufsize" );
         my $chunk_start = $eol + 2;
         my $chunk_end   = $chunk_start + $chunk_size + 2;
         if ( $bufsize >= $chunk_end ) {
 
                 # We have a complete chunk
                 my $chunk = substr( $buf, $chunk_start, $chunk_end - $chunk_start - 2 );
+
+                #		$log->error("Read chunk=$chunk" );
 
                 if ( my $cb = $args->{onBody} ) {
                         my $passthrough = $args->{passthrough} || [];
@@ -150,9 +153,11 @@ sub _parse_chunk {
                         $cb->( $self, @{$passthrough} );
                 }
 
-                $log->error( "Next chunk starts at " . ($chunk_end) );
+                #		$log->error("Next chunk starts at ".($chunk_end));
                 return $chunk_end;
         }
+
+        #	$log->error("Read chunk  need more!" );
         return 0;
 }
 
@@ -184,10 +189,16 @@ sub _http_read {
 
         #	$log->error("Read");
 
+        #	print ("_http_read: $self=".$self."\n" );
+        #	print ("_http_read: $self->socket=".$self->socket."\n" );
         my $buf     = $self->socket->get("buf");
         my $bufsize = $self->socket->get("bufsize");
         while (1) {
+
+                #	    $log->error("PRE READ buf=$buf" );
                 my $n = $self->_sysread( $self->socket, $buf, 10000, $bufsize );
+
+                #	    $log->error("POST READ buf=$buf" );
                 if ( !defined $n ) {
                         $self->socket->set( "buf",     $buf );
                         $self->socket->set( "bufsize", $bufsize );
@@ -197,6 +208,7 @@ sub _http_read {
 
                 #		$log->error("Read n=$n" );
                 #		$log->error("Read bufsize=$bufsize" );
+                $log->debug("Read buf[$bufsize]=$buf");
 
                 if ( $n == 0 ) {
                         $self->_disconnect($args);
@@ -208,6 +220,7 @@ sub _http_read {
                         my $parser = $self->content_parser();
 
                         #			$log->error("Parsed parser=$parser" );
+                        printf("Parsed parser=$parser");
 
                         $sp = &$parser( $self, $buf, $bufsize, $args );
                         if ( $sp > 0 ) {
