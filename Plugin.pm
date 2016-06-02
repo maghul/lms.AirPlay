@@ -54,9 +54,11 @@ sub initPlugin {
         # Install callback to get client power state, volume and connect/disconnect changes
         Slim::Control::Request::subscribe( \&clientConnectCallback, [ ['client'] ] );
 
-        Slim::Control::Request::subscribe( \&pauseCallback,                                     [ ['pause'] ] );
-        Slim::Control::Request::subscribe( \&playCallback,                                      [ ['play'] ] );
-        Slim::Control::Request::subscribe( \&playlistCallback,                                  [ ['playlist'] ] );
+        Slim::Control::Request::subscribe( \&pauseCallback,    [ ['pause'] ] );
+        Slim::Control::Request::subscribe( \&playCallback,     [ ['play'] ] );
+        Slim::Control::Request::subscribe( \&playlistCallback, [ ['playlist'] ] );
+
+        Slim::Control::Request::subscribe( \&timeCallback, [ ['time'] ] );
         Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback, [ [ 'mixer', 'volume' ] ] );
 
         #   Check volume control type
@@ -85,6 +87,8 @@ sub shutdownPlugin {
         Slim::Control::Request::unsubscribe( \&pauseCallback );
         Slim::Control::Request::unsubscribe( \&playCallback );
         Slim::Control::Request::unsubscribe( \&playlistCallback );
+
+        Slim::Control::Request::unsubscribe( \&timeCallback );
 
         Slim::Control::Request::unsubscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback );
 
@@ -127,6 +131,23 @@ sub playlistJumpCommand {
                 $request->addParam( '_index', 0 );
         }
         eval { &{$originalPlaylistJumpCommand}($request) };
+}
+
+sub timeCallback {
+        my $request = shift;
+        my $client  = $request->client;
+
+        my $stream   = Slim::Player::Playlist::song($client)->path;
+        my $playmode = Slim::Player::Source::playmode($client);
+        my $mode     = Slim::Buttons::Common::mode($client);
+
+        $log->debug("cli time - playmode=$playmode  stream=$stream ");
+        my $time = $request->getParam("_newvalue");
+        $log->debug("cli time - time = $time");
+
+        if ( isRunningAirplay($stream) ) {
+                Plugins::AirPlay::Shairplay::command( $client, "time/$time" );
+        }
 }
 
 sub playCallback {
