@@ -49,6 +49,15 @@ local $metadata;
 sub metaDataProvider {
         my ( $client, $url ) = @_;
 
+        if ( !$metadata ) {
+                $metadata = {
+                        artist => "",
+                        album  => "",
+
+                        bitrate => 44100,
+                        type    => "AirPlay"
+                };
+        }
         print Data::Dump::dump($metadata);
         return $metadata;
 }
@@ -158,10 +167,11 @@ sub notification {
 
         $log->warn( "\nNotification\n" . Data::Dump::dump($notification) . "\nNotification\n" );
 
-        my $dmap = $$notification{"dmap.listingitem"};
+        my $content = $$notification{"00:11:22:33:44:55"};
+        my $dmap    = $$content{"dmap.listingitem"};
         dmap_lisitingitem_notification($dmap) if ($dmap);
 
-        my $volume = $$notification{"volume"};
+        my $volume = $$content{"volume"};
         volume_notification($volume) if ( defined $volume );
 }
 

@@ -75,10 +75,11 @@ sub _tx {
 
 sub command {
         my $command = shift;
+        my $player  = "00:11:22:33:44:55";
 
         my $params;
         $log->info("AirPlay::Shairplay command '$command'");
-        _tx("$baseURL/playah/control/$command");
+        _tx("$baseURL/$player/control/$command");
 }
 
 sub jump {
