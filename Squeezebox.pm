@@ -151,6 +151,22 @@ sub setAirPlayDeviceVolume {
         Plugins::AirPlay::Shairplay::command( $client, "volume/$volume" );
 }
 
+sub airPlayDevicePlay {
+        my $client  = shift;
+        my $play    = shift;
+        my $airplay = $$airplay{ $client->id() };
+        my $name    = $client->name();
+
+        my $playerstate = $airplay->{playerstate};
+        my $newstate = $play ? "playresume" : "pause";
+
+        $log->debug("$name: Current Playerstate=$playerstate, New State=$newstate\n");
+        if ( $playerstate ne $newstate ) {
+                Plugins::AirPlay::Shairplay::command( $client, $newstate );
+                $airplay->{playerstate} = $newstate;
+        }
+}
+
 sub volume_notification {
         my $client = shift;
         my $volume = shift;

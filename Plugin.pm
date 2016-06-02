@@ -51,7 +51,7 @@ sub initPlugin {
         # Install callback to get client power state, volume and connect/disconnect changes
         Slim::Control::Request::subscribe( \&clientConnectCallback, [ ['client'] ] );
 
-        Slim::Control::Request::subscribe( \&pauseCallback,    [ ['pause'] ] );
+        Slim::Control::Request::subscribe( \&playCallback,     [ ['pause'] ] );
         Slim::Control::Request::subscribe( \&playCallback,     [ ['play'] ] );
         Slim::Control::Request::subscribe( \&playlistCallback, [ ['playlist'] ] );
 
@@ -81,7 +81,6 @@ sub initPlugin {
 sub shutdownPlugin {
         Slim::Control::Request::unsubscribe( \&clientConnectCallback );
 
-        Slim::Control::Request::unsubscribe( \&pauseCallback );
         Slim::Control::Request::unsubscribe( \&playCallback );
         Slim::Control::Request::unsubscribe( \&playlistCallback );
 
@@ -151,40 +150,28 @@ sub playCallback {
         my $request = shift;
         my $client  = $request->client;
 
+        my $song     = Slim::Player::Playlist::song($client);
         my $stream   = Slim::Player::Playlist::song($client)->path;
         my $playmode = Slim::Player::Source::playmode($client);
         my $mode     = Slim::Buttons::Common::mode($client);
+        my $name     = $client->name();
 
-        $log->debug("cli Pause - playmode=$playmode  stream=$stream ");
-
+        $log->debug( "duration=" . $song->duration() );
         if ( isRunningAirplay($stream) ) {
-                if ( $prefs->get('pausestop') ) {
-                        $log->debug("Issuing playresume");
-                        if ( "play" eq $playmode ) {
-                                Plugins::AirPlay::Shairplay::command( $client, "playresume" );
-                        }
-                }
-        }
 
-}
+                #		if ($prefs->get('pausestop')) {
 
-sub pauseCallback {
-        my $request = shift;
-        my $client  = $request->client;
+                #			if ( "play" ne $playmode ) {
+                $log->debug("$name: Issuing $playmode");
 
-        my $stream   = Slim::Player::Playlist::song($client)->path;
-        my $playmode = Slim::Player::Source::playmode($client);
-        my $mode     = Slim::Buttons::Common::mode($client);
+                #					Plugins::AirPlay::Shairplay::command($client, "playresume");tx
 
-        $log->debug("cli Pause - playmode=$playmode  stream=$stream ");
+                #					Plugins::AirPlay::Squeezebox::airPlayDevicePlay($client, $playmode eq "play");
+                Plugins::AirPlay::Squeezebox::airPlayDevicePlay( $client, 1 ) if ( $playmode eq "play" );
+                Plugins::AirPlay::Squeezebox::airPlayDevicePlay( $client, 0 ) if ( $playmode eq "pause" );
 
-        if ( isRunningAirplay($stream) ) {
-                if ( $prefs->get('pausestop') ) {
-                        $log->debug("Issuing pause");
-                        if ( "pause" eq $playmode ) {
-                                Plugins::AirPlay::Shairplay::command( $client, "pause" );
-                        }
-                }
+                #			}
+                #		}
         }
 
 }
