@@ -10,7 +10,8 @@ use JSON::XS::VersionOneAndTwo;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Slim::Utils::Strings qw(string cstring);
-use Plugins::AirPlay::HTTP;    # Actually Slim::Networking::Async::HTTP
+use Plugins::AirPlay::HTTP;
+use Plugins::AirPlay::Squeezebox;
 
 my $log   = logger('plugin.airplay');
 my $prefs = preferences('plugin.airplay');
@@ -26,14 +27,13 @@ sub asyncCBContentType {
 
 sub asyncCBContent {
         my $http = shift;
-
-        #    my $html = shift;
-        #    $log->warn(Data::Dump::dump($http));
         my $html = $http->response->content();
         $log->warn( Data::Dump::dump($html) );
         my $perl = decode_json($html);
-        $log->warn( Data::Dump::dump($perl) );
 
+        #    $log->warn(Data::Dump::dump($perl));
+
+        Plugins::AirPlay::Squeezebox::notification($perl);
         return 1;
 }
 
@@ -47,19 +47,6 @@ sub asyncCBContentTypeError {
         $log->warn( Data::Dump::dump(@_) );
 }
 
-sub gotNotification {
-        my $http = shift;
-        my $buf  = shift;
-
-        #	my $html = $http->content();
-        #	my $params = $http->params();
-        $log->warn("Shairplay: gotNotification");
-        $log->warn( Data::Dump::dump($http) );
-        $log->warn( Data::Dump::dump($buf) );
-
-        #	$log->warn("content=".$html."--content-end--");
-}
-
 sub startNotifications {
         my $params;
         $log->info("AirPlay::Shairplay startNotifications");
@@ -69,9 +56,6 @@ sub startNotifications {
         Plugins::AirPlay::HTTP->new()->send_request(
                 {
                         'request' => HTTP::Request->new( GET => $url ),
-
-                        #	'onHeaders'   => \&asyncCBContentType,
-                        #	'onStream'   => \&asyncCBContent,
                         'onBody'  => \&asyncCBContent,
                         'onError' => \&asyncCBContentTypeError,
                         'Timeout' => 100000000,
