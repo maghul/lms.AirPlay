@@ -52,9 +52,10 @@ sub initPlugin {
         # Install callback to get client power state, volume and connect/disconnect changes
         Slim::Control::Request::subscribe( \&clientConnectCallback, [ ['client'] ] );
 
-        Slim::Control::Request::subscribe( \&pauseCallback,    [ ['pause'] ] );
-        Slim::Control::Request::subscribe( \&pauseCallback,    [ ['play'] ] );
-        Slim::Control::Request::subscribe( \&playlistCallback, [ ['playlist'] ] );
+        Slim::Control::Request::subscribe( \&pauseCallback,                                     [ ['pause'] ] );
+        Slim::Control::Request::subscribe( \&pauseCallback,                                     [ ['play'] ] );
+        Slim::Control::Request::subscribe( \&playlistCallback,                                  [ ['playlist'] ] );
+        Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback, [ [ 'mixer', 'volume' ] ] );
 
         Slim::Formats::RemoteMetadata->registerProvider(
                 match => qr/mauree/,
@@ -75,6 +76,8 @@ sub shutdownPlugin {
 
         Slim::Control::Request::unsubscribe( \&pauseCallback );
         Slim::Control::Request::unsubscribe( \&playlistCallback );
+
+        Slim::Control::Request::unsubscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback );
 
         # Remove reroute for all playlist jump requests
         Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, $originalPlaylistJumpCommand ] );

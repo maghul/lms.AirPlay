@@ -4,6 +4,8 @@
 
 package Plugins::AirPlay::Squeezebox;
 
+use Plugins::AirPlay::Shairplay;
+
 use Data::Dumper;
 
 use Slim::Utils::Log;
@@ -87,14 +89,68 @@ sub dmap_lisitingitem_notification {
 
 }
 
+sub airplay_to_squeezebox_volume {
+        my $volume = shift;
+        return 100 + ( $volume * 100.0 / 30.0 );
+}
+
+sub squeezebox_to_airplay_volume {
+        my $volume = shift;
+        return -144 if ( $volume == 0 );
+        return -30 + $volume * 30 / 100;
+}
+
+my $sb_volume;
+my $target_volume;
+
 sub volume_notification {
         my $volume = shift;
 
         $log->debug("Volume=$volume\n");
         my $client = get_client();
-        my $sb_volume = 100 + ( $volume * 100.0 / 30.0 );
-        $sb_volume = 0 if ( $sb_volume < 0 );
-        $client->execute( [ "mixer", "volume", $sb_volume ] );
+
+        my $new_volume = airplay_to_squeezebox_volume($volume);
+        $new_volume = 0 if ( $sb_volume < 0 );
+
+        if ( defined $target_volume ) {
+                $log->debug("new_volume=$new_volume, target_volume=$target_volume, sb_volume=$sb_volume\n");
+
+                if (       ( $new_volume <= $target_volum && $target_volume <= $sb_volume )
+                        || ( $new_volume <= $target_volum && $target_volume <= $sb_volume ) )
+                {
+                        undefine $target_volume;
+                }
+                else {
+                        changeVolume();
+                }
+        }
+        else {
+                $client->execute( [ "mixer", "volume", $sb_volume ] );
+        }
+        $sb_volume = $new_volume;
+}
+
+sub changeVolume {
+        if ($target_volume) {
+                my $vol = $target_volume < $sb_volume ? "volumedown" : "volumeup";
+                Plugins::AirPlay::Shairplay::command($vol);
+        }
+}
+
+sub mixerVolumeCallback {
+        my $request = shift;
+        my $client  = $request->client;
+
+        return if !defined $client;
+
+        # TODO: Check if it running airplay.
+
+        my $volume = $client->volume();
+
+        $log->debug("mixer volume=$volume");
+
+        $target_volume = $volume;
+        changeVolume();
 }
 
 sub notification {
