@@ -55,7 +55,7 @@ sub initPlugin {
         Slim::Control::Request::subscribe( \&clientConnectCallback, [ ['client'] ] );
 
         Slim::Control::Request::subscribe( \&pauseCallback,                                     [ ['pause'] ] );
-        Slim::Control::Request::subscribe( \&pauseCallback,                                     [ ['play'] ] );
+        Slim::Control::Request::subscribe( \&playCallback,                                      [ ['play'] ] );
         Slim::Control::Request::subscribe( \&playlistCallback,                                  [ ['playlist'] ] );
         Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback, [ [ 'mixer', 'volume' ] ] );
 
@@ -83,6 +83,7 @@ sub shutdownPlugin {
         Slim::Control::Request::unsubscribe( \&clientConnectCallback );
 
         Slim::Control::Request::unsubscribe( \&pauseCallback );
+        Slim::Control::Request::unsubscribe( \&playCallback );
         Slim::Control::Request::unsubscribe( \&playlistCallback );
 
         Slim::Control::Request::unsubscribe( \&Plugins::AirPlay::Squeezebox::mixerVolumeCallback );
@@ -128,6 +129,27 @@ sub playlistJumpCommand {
         eval { &{$originalPlaylistJumpCommand}($request) };
 }
 
+sub playCallback {
+        my $request = shift;
+        my $client  = $request->client;
+
+        my $stream   = Slim::Player::Playlist::song($client)->path;
+        my $playmode = Slim::Player::Source::playmode($client);
+        my $mode     = Slim::Buttons::Common::mode($client);
+
+        $log->debug("cli Pause - playmode=$playmode  stream=$stream ");
+
+        if ( isRunningAirplay($stream) ) {
+                if ( $prefs->get('pausestop') ) {
+                        $log->debug("Issuing playresume");
+                        if ( "play" eq $playmode ) {
+                                Plugins::AirPlay::Shairplay::command( $client, "playresume" );
+                        }
+                }
+        }
+
+}
+
 sub pauseCallback {
         my $request = shift;
         my $client  = $request->client;
@@ -140,10 +162,7 @@ sub pauseCallback {
 
         if ( isRunningAirplay($stream) ) {
                 if ( $prefs->get('pausestop') ) {
-                        $log->debug("Issuing pause/resume");
-                        if ( "play" eq $playmode ) {
-                                Plugins::AirPlay::Shairplay::command( $client, "playresume" );
-                        }
+                        $log->debug("Issuing pause");
                         if ( "pause" eq $playmode ) {
                                 Plugins::AirPlay::Shairplay::command( $client, "pause" );
                         }
