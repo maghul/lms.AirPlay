@@ -110,7 +110,9 @@ sub command {
 sub jump {
         my $client = shift;
         my $index  = shift;
-        command( $client, $index > 0 ? "nextitem" : "previtem" );
+        if ( $index != 0 ) {
+                command( $client, $index > 0 ? "nextitem" : "previtem" );
+        }
 }
 
 #sub play {
