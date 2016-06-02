@@ -39,25 +39,47 @@ my $originalPlaylistJumpCommand;
 sub initPlugin {
         my $class = shift;
 
-        $log->info("Initialising AirPlay ");
-        $log->info( "Initialising AirPlay " . $class->_pluginDataFor('version') );
+        $log->info( "Initializing AirPlay " . $class->_pluginDataFor('version') );
         Plugins::AirPlay::Settings->new($class);
         Plugins::AirPlay::Settings->init();
-        Plugins::AirPlay::HTTP->init();    # TODO: Remove... maybe?
 
-        #	Slim::Control::Request::subscribe( \&pauseCallback, [['pause']] );
+        #	Plugins::AirPlay::HTTP->init(); # TODO: Remove... maybe?
+        Plugins::AirPlay::Chunked->init();    # TODO: Remove... maybe?
+
+        Slim::Web::Pages->addRawFunction( '/airplayimage', \&Plugins::AirPlay::CoverArt::handler );
+
+        # Install callback to get client power state, volume and connect/disconnect changes
+        Slim::Control::Request::subscribe( \&clientConnectCallback, [ ['client'] ] );
+
+        Slim::Control::Request::subscribe( \&pauseCallback,    [ ['pause'] ] );
+        Slim::Control::Request::subscribe( \&pauseCallback,    [ ['play'] ] );
         Slim::Control::Request::subscribe( \&playlistCallback, [ ['playlist'] ] );
 
         # Reroute all playlist jump requests
         $originalPlaylistJumpCommand =
           Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, \&playlistJumpCommand ] );
 
-        # This actually does nothing. It is used for notifications to the AirPlay server
-        Slim::Control::Request::addDispatch( [ 'airplay', '_command', '_arg1' ], [ 1, 0, 0, undef ] );
-
         Plugins::AirPlay::Shairplay::startNotifications();
 
         return 1;
+}
+
+sub shutdownPlugin {
+
+        Slim::Control::Request::unsubscribe( \&pauseCallback );
+        Slim::Control::Request::unsubscribe( \&playlistCallback );
+
+        # Remove reroute for all playlist jump requests
+        Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, $originalPlaylistJumpCommand ] );
+
+        Plugins::AirPlay::Shairplay::stopNotifications();
+        return;
+}
+
+sub isRunningAirplay {
+        my $url = shift;
+
+        return $url =~ /^http:\/\/mauree\:6111/;
 }
 
 sub playlistJumpCommand {
@@ -70,13 +92,15 @@ sub playlistJumpCommand {
 
         my $url = Slim::Player::Playlist::url($client);
 
-        if ( $url =~ /^airplay:/ ) {
+        if ( isRunningAirplay($url) ) {
                 $log->debug("AIRPLAY command: jump $index");
-                Slim::Control::Request::notifyFromArray( $client, [ 'airplay', 'jump', $index ], );
+                Plugins::AirPlay::Shairplay::jump($index);
 
-                if ( $client->isPlaying() ) {
-                        return;
-                }
+                #		Slim::Control::Request::notifyFromArray($client, ['airplay', 'jump', $index],);
+                #
+                #		if ( $client->isPlaying()) {
+                #			return;
+                #		}
 
                 # We can't jump anywhere in the playlist but this call does many other things we need done.
                 $request->addParam( '_index', 0 );
@@ -94,12 +118,15 @@ sub pauseCallback {
 
         $log->debug("cli Pause - playmode=$playmode  stream=$stream ");
 
-        if ( $stream =~ /^airplay:/ ) {
-
-                #	if ($playmode eq 'pause' && $stream =~ /^airplay:/ ) {
+        if ( isRunningAirplay($stream) ) {
                 if ( $prefs->get('pausestop') ) {
-                        $log->debug("Issuing stop");
-                        $client->execute( ['stop'] );
+                        $log->debug("Issuing pause/resume");
+                        if ( "play" eq $playmode ) {
+                                Plugins::AirPlay::Shairplay::command( $client, "playresume" );
+                        }
+                        if ( "pause" eq $playmode ) {
+                                Plugins::AirPlay::Shairplay::command( $client, "pause" );
+                        }
                 }
         }
 
@@ -109,20 +136,16 @@ sub playlistCallback {
         my $request = shift;
         my $client  = $request->client;
 
-        #	my $stream  = Slim::Player::Playlist::song($client)->path;
+        my $stream = Slim::Player::Playlist::song($client)->path;
 
-        $log->debug( "CLI Playlist - request=$request, client=$client " . Dumper($request) );
-
-        if ( $request->isCommand( [ ['playlist'], ['stop'] ] ) ) {
-                $log->debug("CLI Playlist - Playlist stop notification.");
-                Slim::Control::Request::notifyFromArray( $client, [ 'airplay', 'stop' ], );
+        if ( isRunningAirplay($stream) ) {
+                if ( $request->isCommand( [ ['playlist'], ['stop'] ] ) ) {
+                        $log->debug("CLI Playlist - Playlist stop notification.");
+                }
+                if ( $request->isCommand( [ ['playlist'], ['index'] ] ) ) {
+                        $log->debug("CLI Playlist - Playlist index notification.");
+                }
         }
-}
-
-sub shutdownPlugin {
-
-        #	Slim::Control::Request::unsubscribe(\&pauseCallback);
-        return;
 }
 
 sub getDisplayName() {

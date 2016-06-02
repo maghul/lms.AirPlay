@@ -60,10 +60,37 @@ sub asyncDisconnect {
         # Timeout if we never get any data
         Slim::Utils::Timers::setTimer( $http, Time::HiRes::time() + $$data{RetryTimer}, \&reconnectNotifications, $data );
 }
-my $params;
-$log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
 
-Plugins::AirPlay::HTTP->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
+sub _tx {
+        my $url = shift;
+        $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
+
+        Plugins::AirPlay::HTTP->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
+
+}
+
+sub command {
+        my $command = shift;
+
+        my $params;
+        $log->info("AirPlay::Shairplay command '$command'");
+        _tx("$baseURL/playah/control/$command");
+}
+
+sub jump {
+        my $index = shift;
+        command( $index > 0 ? "nextitem" : "previtem" );
+}
+
+sub play {
+        my $index = shift;
+        command( $index > 0 ? "nextitem" : "previtem" );
+}
+
+sub pause {
+        my $index = shift;
+        command( $index > 0 ? "nextitem" : "previtem" );
+}
 
 sub startNotifications {
         my $retryTimer    = shift || 3;
