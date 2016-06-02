@@ -28,6 +28,12 @@ sub initClient {
         }
 }
 
+sub airplay {
+        my $client = shift;
+
+        return $$airplay{ $client->id() };
+}
+
 #sub getinfo {
 #	my $client= shift;
 #
@@ -168,7 +174,7 @@ sub volume_notification {
         my $client = shift;
         my $volume = shift;
 
-        my $d = $$airplay{ $client->id() };
+        my $d = airplay($client);
         $d->{device_volume} = $volume;
 
         $client->execute( [ "mixer", "volume", $volume ] );
