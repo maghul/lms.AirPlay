@@ -10,146 +10,39 @@ package Plugins::AirPlay::Chunked;
 # This class provides an async HTTP implementation.
 
 use strict;
-
-BEGIN {
-        my $hasSSL;
-
-        sub hasSSL {
-                return $hasSSL if defined $hasSSL;
-
-                $hasSSL = 0;
-
-                eval {
-                        require Slim::Networking::Async::Socket::HTTPS;
-                        $hasSSL = 1;
-                };
-
-                if ($@) {
-                        msg("Async::HTTP: Unable to load IO::Socket::SSL, will try connecting to SSL servers in non-SSL mode\n");
-                }
-
-                return $hasSSL;
-        }
-}
-
 use base 'Slim::Networking::Async';
 
-use HTTP::Headers;
-use HTTP::Request;
 use HTTP::Response;
-use HTTP::Cookies;
-use MIME::Base64 qw(encode_base64);
-use URI;
-use File::Spec::Functions qw(catdir);
 
-use Slim::Networking::Async::Socket::HTTP;
+use Slim::Networking::Select;
+use Slim::Networking::Async::Socket;
+
 use Slim::Utils::Log;
-use Slim::Utils::Misc;
-use Slim::Utils::Prefs;
-use Slim::Utils::Timers;
-
-use constant BUFSIZE   => 16 * 1024;
-use constant MAX_REDIR => 7;
-
-my $prefs = preferences('server');
-
-my $cookieJar;
 
 my $log = logger('plugin.airplay');
 
 __PACKAGE__->mk_accessor(
         rw => qw(
-          uri request response saveAs fh timeout maxRedirect
+          uri request response saveAs fh timeout maxRedirect buffer
           )
 );
 
-sub init {
-        $cookieJar = HTTP::Cookies->new( file => catdir( $prefs->get('cachedir'), 'cookies.dat' ), autosave => 1 );
-}
+use constant BUFSIZE   => 16 * 1024;
+use constant MAX_REDIR => 7;
 
 sub new_socket {
         my $self = shift;
-
-        if ( my $proxy = $self->use_proxy ) {
-
-                main::INFOLOG && $log->info("Using proxy $proxy to connect");
-
-                my ( $pserver, $pport ) = split /:/, $proxy;
-
-                return Slim::Networking::Async::Socket::HTTP->new(
-                        @_,
-                        PeerAddr => $pserver,
-                        PeerPort => $pport || 80,
-                );
-        }
-
-        # Create SSL socket if URI is https
-        if ( $self->request->uri->scheme eq 'https' ) {
-                if ( hasSSL() ) {
-                        return Slim::Networking::Async::Socket::HTTPS->new(@_);
-                }
-                else {
-                        # change the request to port 80
-                        $self->request->uri->scheme('http');
-                        $self->request->uri->port(80);
-
-                        my %args = @_;
-                        $args{PeerPort} = 80;
-
-                        $log->warn("Warning: trying HTTP request to HTTPS server");
-
-                        return Slim::Networking::Async::Socket::HTTP->new(%args);
-                }
-        }
-        else {
-                return Slim::Networking::Async::Socket::HTTP->new(@_);
-        }
-}
-
-sub use_proxy {
-        my $self = shift;
-
-        # Proxy will be used for non-local HTTP requests
-        if ( my $proxy = $prefs->get('webproxy') ) {
-                my $host   = $self->request->uri->host;
-                my $scheme = $self->request->uri->scheme;
-                if ( $scheme ne 'https' && $host !~ /(?:localhost|127.0.0.1)/ ) {
-                        return $proxy;
-                }
-        }
-
-        return;
+        return Slim::Networking::Async::Socket::HTTP->new(@_);
 }
 
 sub send_request {
         my ( $self, $args ) = @_;
 
-        $self->maxRedirect( $args->{maxRedirect} || MAX_REDIR );
+        $log->error("send_request");
 
-        if ( $args->{Timeout} ) {
-                $self->timeout( $args->{Timeout} );
-        }
+        $self->request( $args->{request} );
 
-        # option to save directly to a file
-        if ( $args->{saveAs} ) {
-                $self->saveAs( $args->{saveAs} );
-        }
-
-        $self->request( $args->{request} || HTTP::Request->new( $args->{method} => $args->{url} ) );
-
-        if ( $self->request->uri !~ /^https?:/i ) {
-                my $error = 'Cannot request non-HTTP URL ' . $self->request->uri;
-                return $self->_http_error( $error, $args );
-        }
-
-        if ( !$self->request->protocol ) {
-                $self->request->protocol('HTTP/1.0');
-        }
-
-        # XXX until we support chunked encoding, force 1.0
-        $self->request->protocol('HTTP/1.0');
-
-        $self->add_headers();
+        $self->request->protocol('HTTP/1.1');
 
         $self->write_async(
                 {
@@ -157,386 +50,135 @@ sub send_request {
                         port        => $self->request->uri->port,
                         content_ref => \&_format_request,
                         Timeout     => $self->timeout,
-                        skipDNS     => ( $self->use_proxy ) ? 1 : 0,
                         onError     => \&_http_error,
                         onRead      => \&_http_read,
                         passthrough => [$args],
                 }
         );
+
 }
 
-# add standard request headers
-sub add_headers {
+sub use_proxy {
         my $self = shift;
-
-        my $headers = $self->request->headers;
-
-        # handle basic auth if username, password provided
-        if ( my $userinfo = $self->request->uri->userinfo ) {
-                $headers->header( Authorization => 'Basic ' . encode_base64( $userinfo, '' ) );
-        }
-
-        my $host = $self->request->uri->host;
-        if ( $self->request->uri->port != 80 ) {
-                $host .= ':' . $self->request->uri->port;
-        }
-
-        # Host doesn't use init_header so it will be changed if we're redirecting
-        $headers->header( Host => $host );
-
-        $headers->init_header( 'User-Agent'    => Slim::Utils::Misc::userAgentString() );
-        $headers->init_header( Accept          => '*/*' );
-        $headers->init_header( 'Cache-Control' => 'no-cache' );
-        $headers->init_header( Connection      => 'close' );
-
-        if ( $headers->header('User-Agent') !~ /^NSPlayer/ ) {
-                $headers->init_header( 'Icy-Metadata' => 1 );
-        }
-
-        # Add cookies
-        if ( !main::SLIM_SERVICE && !main::SCANNER ) {
-                $cookieJar->add_cookie_header( $self->request );
-        }
-}
-
-# allow people to access our cookie jar
-sub cookie_jar {
-        return $cookieJar;
+        return;
 }
 
 sub _format_request {
         my $self = shift;
 
         my $fullpath = $self->request->uri->path_query;
-        $fullpath = "/$fullpath" unless $fullpath =~ /^\//;
 
-        # Proxy requests require full URL
-        if ( $self->use_proxy ) {
-                $fullpath = $self->request->uri->as_string;
-        }
+        $self->socket->set( "content_parser", \&_parse_header );
 
-        my @h;
-        $self->request->headers->scan(
-                sub {
-                        my ( $k, $v ) = @_;
-                        $k =~ s/^://;
-                        $v =~ s/\n/ /g;
-                        push @h, $k, $v;
-                }
-        );
+        $self->socket->http_version('1.1');
 
-        # Add POST body if any
-        my $content_ref = $self->request->content_ref;
-        if ( ref $content_ref ) {
-                push @h, $$content_ref;
-        }
+        my $request = $self->socket->format_request( $self->request->method, $fullpath, );
 
-        # XXX until we support chunked encoding, force 1.0
-        $self->socket->http_version('1.0');
-
-        my $request = $self->socket->format_request( $self->request->method, $fullpath, @h, );
-
+        $log->error("request '$request'");
         return \$request;
-}
-
-sub disconnect_callback {
-        my $self = shift;
-        my $args = shift;
-
-        $self->SUPER::disconnect;
-        if ( my $onDisconnect = $args->{onDisconnect} ) {
-                my $passthrough = $args->{passthrough} || [];
-                $onDisconnect->( $self, @{$passthrough} );
-        }
-
-}
-
-# After reading headers, some callers may want to continue and
-# read the body
-sub read_body {
-        my $self = shift;
-        my $args = shift;
-
-        $self->socket->set( passthrough => [ $self, $args ] );
-
-        Slim::Networking::Select::addError( $self->socket, \&_http_socket_error );
-        Slim::Networking::Select::addRead( $self->socket, \&_http_read_body );
-}
-
-sub _http_socket_error {
-        my ( $socket, $self, $args ) = @_;
-
-        Slim::Utils::Timers::killTimers( $socket, \&_http_socket_error );
-
-        $self->disconnect_callback($args);
-
-        return $self->_http_error( "Error on HTTP socket: $!", $args );
 }
 
 sub _http_error {
         my ( $self, $error, $args ) = @_;
 
-        if ( $self->fh ) {
-                $self->fh->close;
-        }
+        $log->error("Error: [$error]");
+}
 
-        $self->disconnect_callback($args);
+sub _parse_header {
+        my ( $self, $buf, $bufsize, $args ) = @_;
 
-        # Bug 8801, Only print an error if the caller doesn't have an onError handler
-        if ( my $ecb = $args->{onError} ) {
-                my $passthrough = $args->{passthrough} || [];
-                $ecb->( $self, $error, @{$passthrough} );
+        $log->error("_parser_chunk: buf=$buf");
+
+        $log->error("parse header");
+        if ( $buf =~ /\r\n\r\n/ ) {
+                $log->error("parse header DONE");
+                $self->response( HTTP::Response->new( 200, "Hunky Dory" ) );
+                $self->socket->set( "content_parser", \&_parse_chunk );
+                if ( my $cb = $args->{onConnect} ) {
+                        my $passthrough = $args->{passthrough} || [];
+                        $cb->( $self, @{$passthrough} );
+                }
+
+                return index( $buf, "\r\n\r\n" ) + 4;
         }
-        else {
-                $log->error("Error: [$error]");
+        return 0;
+
+}
+
+sub _parse_chunk {
+        my ( $self, $buf, $bufsize, $args ) = @_;
+
+        $log->error("_parser_chunk: buf=$buf");
+        my $eol = index( $buf, "\r\n" );
+        if ( !$eol ) {
+                return 0;
         }
+        my $chunk_line = substr( $buf, 0, $eol );
+        $log->error("Read chunk_line=$chunk_line");
+        my $chunk_len = $chunk_line;
+        $chunk_len =~ s/;.*//;    # ignore potential chunk parameters
+        $log->error("Read chunk_len=$chunk_len");
+        unless ( $chunk_len =~ /^([\da-fA-F]+)\s*$/ ) {
+                $self->_http_error( "Bad chunk-size in HTTP response: $buf", $args );
+                return 0;
+        }
+        my $chunk_size = hex($1);
+        $log->error("Read chunk_size=$chunk_size");
+        my $chunk_start = $eol + 2;
+        my $chunk_end   = $chunk_start + $chunk_size;
+        if ( $bufsize > $chunk_end ) {
+
+                # We have a complete chunk
+                my $chunk = substr( $buf, $chunk_start, $chunk_end - $chunk_start );
+                $log->error("Read chunk=$chunk");
+
+                if ( my $cb = $args->{onBody} ) {
+                        my $passthrough = $args->{passthrough} || [];
+                        $self->response->content($chunk);
+                        $cb->( $self, @{$passthrough} );
+                }
+
+                return $chunk_end + 2;
+        }
+        return 0;
 }
 
 sub _http_read {
         my ( $self, $args ) = @_;
+        $log->error("Read");
 
-        my ( $code, $mess, @h ) = eval { $self->socket->read_response_headers };
-
-        if ($@) {
-                $self->_http_error( "Error reading headers: $@", $args );
-                return;
-        }
-
-        if ($code) {
-
-                # headers complete, remove ourselves from select loop
-                Slim::Networking::Select::removeError( $self->socket );
-                Slim::Networking::Select::removeRead( $self->socket );
-
-                # do we have a previous response from a redirect?
-                my $previous = [];
-                if ( $self->response ) {
-                        if ( $self->response->previous ) {
-                                $previous = $self->response->previous;
-                        }
-                        push @{$previous}, $self->response->clone;
+        my $buf     = $self->socket->get("buf");
+        my $bufsize = $self->socket->get("bufsize");
+        while (1) {
+                my $n = sysread( $self->socket, $buf, 10000, $bufsize );
+                if ( !defined $n ) {
+                        $self->socket->set( "buf",     $buf );
+                        $self->socket->set( "bufsize", $bufsize );
+                        return;
                 }
+                $bufsize += $n;
+                $log->error("Read n=$n");
+                $log->error("Read bufsize=$bufsize");
+                $log->error("Read buf=$buf");
 
-                my $headers = HTTP::Headers->new;
-                while (@h) {
-                        my ( $k, $v ) = splice @h, 0, 2;
-                        $headers->push_header( $k => $v );
-                }
-                $self->response( HTTP::Response->new( $code, $mess, $headers ) );
+                my $sp;
+                do {
+                        my $parser = $self->socket->get("content_parser");
+                        $log->error("Parsed parser=$parser");
 
-                # Save previous response
-                $self->response->previous($previous);
+                        $sp = &$parser( $self, $buf, $bufsize, $args );
+                        $log->error("Parsed sp=$sp");
+                        $buf = substr( $buf, $sp );
+                        $bufsize -= $sp;
+                        $log->error("Parsed buf=$buf");
+                        $log->error("Parsed bufsize=$bufsize");
+                } until ( $sp == 0 || $bufsize == 0 );
 
-                $self->response->request( $self->request );
-
-                # Save cookies
-                if ( !main::SLIM_SERVICE ) {
-                        $cookieJar->extract_cookies( $self->response );
-                }
-
-                if ( main::DEBUGLOG && $log->is_debug ) {
-
-                        $log->debug("Headers read. code: $code status: $mess");
-                        $log->debug( Data::Dump::dump( $self->response->headers ) );
-                }
-
-                if ( $code !~ /[23]\d\d/ ) {
-                        return $self->_http_error( $self->response->status_line, $args );
-                }
-
-                # Handle redirects
-                if ( $code =~ /^30[1237]$/ ) {
-
-                        my $location = $self->response->header('Location');
-
-                        # check max redirects
-                        if ( $location && scalar @{$previous} < $self->maxRedirect ) {
-
-                                $self->disconnect_callback($args);
-
-                                # change the request object to the new location
-                                delete $args->{request};
-                                $self->request->uri( URI->new_abs( $location, $self->request->uri ) );
-
-                                if ( main::INFOLOG && $log->is_info ) {
-                                        $log->info( sprintf( "Redirecting to %s", $self->request->uri->as_string ) );
-                                }
-
-                                # Does the caller want to modify redirecting URLs?
-                                if ( $args->{onRedirect} ) {
-                                        my $passthrough = $args->{passthrough} || [];
-                                        $args->{onRedirect}->( $self->request, @{$passthrough} );
-                                }
-
-                                $self->send_request(
-                                        {
-                                                request => $self->request,
-                                                %{$args},
-                                        }
-                                );
-
-                                return;
-                        }
-                        else {
-
-                                my $error = $location ? 'Redirection limit exceeded' : 'Redirection without location';
-
-                                $log->warn($error);
-
-                                $self->disconnect_callback($args);
-
-                                if ( my $cb = $args->{onError} ) {
-                                        my $passthrough = $args->{passthrough} || [];
-                                        return $cb->( $self, $error, @{$passthrough} );
-                                }
-
-                                return;
-                        }
-                }
-
-                # Does the caller want a callback on headers?
-                if ( my $cb = $args->{onHeaders} ) {
-                        my $passthrough = $args->{passthrough} || [];
-                        return $cb->( $self, @{$passthrough} );
-                }
-
-                # if not, keep going and read the body
-                $self->socket->set( passthrough => [ $self, $args ] );
-
-                # Timer in case the server never sends any body data
-                my $timeout = $self->timeout || $prefs->get('remotestreamtimeout');
-                Slim::Utils::Timers::setTimer( $self->socket, Time::HiRes::time() + $timeout, \&_http_socket_error, $self, $args );
-
-                Slim::Networking::Select::addError( $self->socket, \&_http_socket_error );
-                Slim::Networking::Select::addRead( $self->socket, \&_http_read_body );
         }
 }
 
-sub _http_read_body {
-        my ( $socket, $self, $args ) = @_;
-        main::DEBUGLOG && $log->debug("START!");
-
-        Slim::Utils::Timers::killTimers( $socket, \&_http_socket_error );
-        Slim::Utils::Timers::killTimers( $socket, \&_http_read_timeout );
-
-        my $result = $socket->read_entity_body( my $buf, BUFSIZE );
-
-        if ($result) {
-                main::DEBUGLOG && $log->debug("Read body: [$result] bytes");
-                if ( $result < 0 ) {
-                        main::DEBUGLOG && $log->debug("Closing socket: $@");
-                        $self->disconnect_callback($args);
-                }
-                $log->debug( "buf " . $buf );
-        }
-
-        # Are we saving directly to a file?
-        if ( $result && $self->saveAs && !$self->fh ) {
-                open my $fh, '>', $self->saveAs or do {
-                        return $self->_http_error( 'Unable to open ' . $self->saveAs . " for writing: $!", $args );
-                };
-
-                binmode $fh;
-
-                if ( main::DEBUGLOG && $log->is_debug ) {
-                        $log->debug( "Writing response directly to " . $self->saveAs );
-                }
-
-                $self->fh($fh);
-        }
-
-        if ( $result && $self->saveAs ) {
-
-                # Write directly to a file
-                $self->fh->write( $buf, length $buf ) or do {
-                        return $self->_http_error( 'Unable to write to ' . $self->saveAs . ": $!", $args );
-                };
-        }
-        elsif ( $args->{onStream} ) {
-
-                # The caller wants a callback on every chunk of data streamed
-                my $pt = $args->{passthrough} || [];
-                my $more = $args->{onStream}->( $self, \$buf, @{$pt} );
-
-                # onStream callback can signal to stop the stream by returning false
-                if ( !$more ) {
-                        $result = 0;
-                }
-        }
-        else {
-                # Add buffer to Response object
-                $self->response->add_content($buf);
-                my $data = $self->response->content();
-                main::DEBUGLOG && $log->debug( "Added data to content: " . $buf );
-                main::DEBUGLOG && $log->debug( "Content: " . $data );
-        }
-
-        # Does the caller want us to quit reading early (i.e. for mp3 frames)?
-        if ( $args->{readLimit} && length( $self->response->content ) >= $args->{readLimit} ) {
-
-                # close and remove the socket
-                $self->disconnect_callback($args);
-
-                if ( main::DEBUGLOG && $log->is_debug ) {
-                        $log->debug( sprintf( "Body read (stopped after %d bytes)", length( $self->response->content ) ) );
-                }
-
-                if ( my $cb = $args->{onBody} ) {
-                        my $passthrough = $args->{passthrough} || [];
-                        return $cb->( $self, @{$passthrough} );
-                }
-        }
-
-        if ( $self->response->header('transfer-encoding') eq "chunked" ) {
-                my $data = $self->response->content();
-                main::DEBUGLOG && $log->debug( "Chunk read: " . $data );
-                if ( my $cb = $args->{onBody} ) {
-                        my $passthrough = $args->{passthrough} || [];
-                        $cb->( $self, @{$passthrough} );
-                        $self->response->content("");
-                }
-        }
-
-        if ( !defined $result || $result == 0 ) {
-
-                # if here, we've reached the end of the body
-
-                # close and remove the socket
-                $self->fh->close if $self->fh;
-                $self->disconnect_callback($args);
-
-                main::DEBUGLOG && $log->debug("Body read");
-
-                if ( my $cb = $args->{onBody} ) {
-                        my $passthrough = $args->{passthrough} || [];
-                        $cb->( $self, @{$passthrough} );
-                }
-        }
-        else {
-                # More body data to read
-
-                # Some servers may never send EOF, but we want to return whatever data we've read
-                my $timeout = $self->timeout || $prefs->get('remotestreamtimeout');
-                Slim::Utils::Timers::setTimer( $socket, Time::HiRes::time() + $timeout, \&_http_read_timeout, $self, $args );
-        }
-}
-
-sub _http_read_timeout {
-        my ( $socket, $self, $args ) = @_;
-
-        $log->warn("Timed out waiting for more body data, returning what we have");
-
-        Slim::Networking::Select::removeError($socket);
-        Slim::Networking::Select::removeRead($socket);
-
-        # close and remove the socket
-        $self->fh->close if $self->fh;
-        $self->disconnect_callback($args);
-
-        if ( my $cb = $args->{onBody} ) {
-                my $passthrough = $args->{passthrough} || [];
-                $cb->( $self, @{$passthrough} );
-        }
+sub init {
+        $log->error("Init");
 }
 
 1;

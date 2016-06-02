@@ -10,6 +10,7 @@ use JSON::XS::VersionOneAndTwo;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Slim::Utils::Strings qw(string cstring);
+use Slim::Networking::Async::HTTP;
 use Plugins::AirPlay::Chunked;
 use Plugins::AirPlay::Squeezebox;
 
@@ -68,7 +69,7 @@ sub _tx {
         my $url = shift;
         $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
 
-        Plugins::AirPlay::Chunked->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
+        Slim::Networking::Async::HTTP->new()->send_request( { 'request' => HTTP::Request->new( GET => $url ), } );
 
 }
 
