@@ -40,7 +40,6 @@ sub asyncCBContent {
         #    $log->warn(Data::Dump::dump($perl));
 
         Plugins::AirPlay::Squeezebox::notification($perl);
-        startAllSessions();
         return 1;
 }
 
@@ -48,6 +47,7 @@ sub asyncCBContentTypeError {
 
         # error callback for establishing content type - causes indexHandler to be processed again with stored params
         my ( $http, $error, $client, $params, $callback, $httpClient, $response ) = @_;
+        $sessions_running = 0;    # Restart sessions on reconnect?
 }
 
 sub reconnectNotifications {
@@ -67,6 +67,14 @@ sub asyncDisconnect {
 
         # Timeout if we never get any data
         Slim::Utils::Timers::setTimer( $http, Time::HiRes::time() + $$data{RetryTimer}, \&reconnectNotifications, $data );
+}
+
+sub asyncConnect {
+        my $http = shift;
+        my $data = shift;
+
+        $log->info("Notifications Connected. ");
+        startAllSessions();
 }
 
 sub _tx {
@@ -127,6 +135,7 @@ sub startNotifications {
                         'onBody'       => \&asyncCBContent,
                         'onError'      => \&asyncCBContentTypeError,
                         'onDisconnect' => \&asyncDisconnect,
+                        'onConnect'    => \&asyncConnect,
                         'Timeout'      => 100000000,
                         'passthrough'  => [
                                 {
@@ -160,6 +169,7 @@ sub startSession {
 }
 
 sub startAllSessions {
+        $log->debug("Start All Sessions sessions_running=$sessions_running");
         if ( !$sessions_running ) {
                 $sessions_running = 1;
                 foreach my $client ( Slim::Player::Client::clients() ) {
