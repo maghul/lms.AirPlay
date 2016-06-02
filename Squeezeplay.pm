@@ -42,6 +42,9 @@ sub start {
         $log->info("starting $helperPath -k $keyPath -l $logfile");
 
         $squeezeplay = undef;
+
+        #    my $cmd= $helperPath."_debug";
+        #    eval { $squeezeplay = Proc::Background->new({ 'die_upon_destroy' => 1 }, $cmd ); };
         eval { $squeezeplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $helperPath, "-k", $keyPath, "-l", $logfile ); };
 
 }
