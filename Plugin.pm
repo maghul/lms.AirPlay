@@ -181,8 +181,6 @@ sub clientConnectCallback {
         if (       $request->isCommand( [ ['client'], ['new'] ] )
                 || $request->isCommand( [ ['client'], ['reconnect'] ] ) )
         {
-                my $subCmd = $request->{'_request'}[1];
-
                 Plugins::AirPlay::Shairplay::setClientNotificationState($client);
 
                 # TODO: Only call this once
@@ -192,6 +190,12 @@ sub clientConnectCallback {
                 $log->debug("Trying to get external volume info for new player...");
                 Slim::Control::Request::executeRequest( $client, ['getexternalvolumeinfo'] );
 
+        }
+        if ( $request->isCommand( [ ['client'], ['disconnect'] ] ) ) {
+
+                # TODO: Only call this once
+                Plugins::AirPlay::Shairplay::stopSession($client);
+                Plugins::AirPlay::Squeezebox::initClient($client);
         }
 }
 

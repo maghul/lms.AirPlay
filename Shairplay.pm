@@ -182,6 +182,21 @@ sub startSession {
         Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
 }
 
+sub stopSession {
+        my ($client) = @_;
+
+        my $id   = $client->id();
+        my $name = $client->name();
+
+        my $url = "$baseUrl/control/stop";
+        $log->info( "AirPlay::Shairplay stop session URL='" . $url . "'" );
+
+        my $request = HTTP::Request->new( GET => $url );
+        $request->header( "airplay-session-id",   $id );
+        $request->header( "airplay-session-name", $name );
+        Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
+}
+
 sub startAllSessions {
         $log->debug("Start All Sessions sessions_running=$sessions_running");
         if ( !$sessions_running ) {
