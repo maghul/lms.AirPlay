@@ -54,7 +54,7 @@ sub reconnectNotifications {
         my ( $error, $data ) = @_;
 
         $log->warn("reconnectNotifications. trying again... ");
-
+        Plugins::AirPlay::Squeezeplay::checkHelper();
         startNotifications( $$data{RetryTimer} * 2, $$data{MaxRetryTimer} );
 }
 

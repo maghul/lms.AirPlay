@@ -46,6 +46,17 @@ sub start {
 
 }
 
+sub checkHelper {
+        $log->info("Helper app check");
+        if ( defined $squeezeplay ) {
+                $log->info("Helper app exists");
+                if ( !$squeezeplay->alive() ) {
+                        $log->info("Helper daemon is not running. Will restart");
+                        start();
+                }
+        }
+}
+
 my $baseurl;
 
 sub getBaseUrl() {
