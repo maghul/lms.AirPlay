@@ -179,7 +179,8 @@ sub _volumeCallback {
 sub _changeVolume {
         my $client = shift;
 
-        if ($target_volume) {
+        if ( $target_volume && ( $target_volume != $sb_volume ) ) {
+
                 my $vol = $target_volume < $sb_volume ? "volumedown" : "volumeup";
                 $log->debug("changeVolume:EMH: client=$client, target_volume=$target_volume, sb_volume=$sb_volume ==> $vol\n");
 
@@ -275,7 +276,7 @@ sub absolute_volume_notification {
         my $prev_volume = shift;
 
         if ( defined $target_volume ) {
-                $log->debug("EMH new_volume=$new_volume, target_volume=$target_volume, sb_volume=$sb_volume\n");
+                $log->debug("EMH volume=$volume, target_volume=$target_volume, sb_volume=$sb_volume\n");
 
                 if ( between( $volume, $target_volume, $prev_volume ) ) {
                         $log->debug("------ Done!\n");
