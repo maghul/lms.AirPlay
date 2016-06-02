@@ -116,7 +116,7 @@ sub _parse_chunk {
 
         #	$log->error("_parser_chunk: buf=$buf" );
         my $eol = index( $buf, "\r\n" );
-        if ( !$eol ) {
+        if ( $eol <= 0 ) {
                 return 0;
         }
         my $chunk_line = substr( $buf, 0, $eol );
@@ -134,13 +134,11 @@ sub _parse_chunk {
 
         #	$log->error("Read chunk_size=$chunk_size" );
         my $chunk_start = $eol + 2;
-        my $chunk_end   = $chunk_start + $chunk_size;
-        if ( $bufsize > $chunk_end ) {
+        my $chunk_end   = $chunk_start + $chunk_size + 2;
+        if ( $bufsize >= $chunk_end ) {
 
                 # We have a complete chunk
-                my $chunk = substr( $buf, $chunk_start, $chunk_end - $chunk_start );
-
-                #		$log->error("Read chunk=$chunk" );
+                my $chunk = substr( $buf, $chunk_start, $chunk_end - $chunk_start - 2 );
 
                 if ( my $cb = $args->{onBody} ) {
                         my $passthrough = $args->{passthrough} || [];
@@ -148,7 +146,8 @@ sub _parse_chunk {
                         $cb->( $self, @{$passthrough} );
                 }
 
-                return $chunk_end + 2;
+                $log->error( "Next chunk starts at " . ($chunk_end) );
+                return $chunk_end;
         }
         return 0;
 }
