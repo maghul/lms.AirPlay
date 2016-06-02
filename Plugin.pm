@@ -181,13 +181,14 @@ sub playlistCallback {
         my $client  = $request->client;
 
         my $stream = Slim::Player::Playlist::song($client)->path;
+        my $name   = $client->name();
 
         if ( isRunningAirplay($stream) ) {
                 if ( $request->isCommand( [ ['playlist'], ['stop'] ] ) ) {
-                        $log->debug("CLI Playlist - Playlist stop notification.");
+                        $log->debug("$name: playlistCallback - Playlist stop notification.");
                 }
                 if ( $request->isCommand( [ ['playlist'], ['index'] ] ) ) {
-                        $log->debug("CLI Playlist - Playlist index notification.");
+                        $log->debug("$name: playlistCallback - Playlist index notification.");
                 }
         }
 }
