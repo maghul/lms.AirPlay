@@ -14,6 +14,7 @@ use Slim::Utils::Prefs;
 use Plugins::AirPlay::Settings;
 use Plugins::AirPlay::Shairplay;
 use Plugins::AirPlay::CoverArt;
+use Plugins::AirPlay::Squeezeplay;
 
 use Data::Dumper;
 
@@ -70,6 +71,8 @@ sub initPlugin {
           Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, \&playlistJumpCommand ] );
 
         Plugins::AirPlay::Shairplay::startNotifications();
+
+        Plugins::AirPlay::Squeezeplay::start();
 
         return 1;
 }
