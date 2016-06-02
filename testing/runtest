@@ -1,0 +1,6 @@
+#!/bin/bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/share/squeezeboxserver/CPAN/arch/5.18/x86_64-linux-thread-multi/auto/Digest/SHA1
+#export LD_LIBRARY_PATH=/usr/share/squeezeboxserver/CPAN/arch/5.18/x86_64-linux-thread-multi/auto/JSON/XS:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/usr/share/squeezeboxserver/CPAN/arch/5.18/x86_64-linux-thread-multi/auto/Template/Stash/XS:$LD_LIBRARY_PATH
+
+perl -I "/var/lib/squeezeboxserver" -I "/usr/share/squeezeboxserver/CPAN/arch/5.18/x86_64-linux-thread-multi" -I /usr/share/squeezeboxserver/lib -I /usr/share/squeezeboxserver/CPAN TestChunked.pl
