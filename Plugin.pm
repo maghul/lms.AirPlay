@@ -13,6 +13,7 @@ use Slim::Utils::Prefs;
 
 use Plugins::AirPlay::Settings;
 use Plugins::AirPlay::Shairplay;
+use Plugins::AirPlay::CoverArt;
 
 use Data::Dumper;
 
