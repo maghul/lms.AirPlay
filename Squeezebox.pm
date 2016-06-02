@@ -144,7 +144,7 @@ sub setAirPlayDeviceVolume {
         my $client = shift;
         my $volume = shift;
 
-        Plugins::AirPlay::Shairplay::command( $client, "volume=$volume" );
+        Plugins::AirPlay::Shairplay::command( $client, "volume/$volume" );
 }
 
 sub relative_volume_notification {
