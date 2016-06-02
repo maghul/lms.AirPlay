@@ -58,7 +58,7 @@ sub start_player {
         if ($client) {
                 my $client_id = $client->id();
                 my $name      = $client->name();
-                $log->debug("$name: running AirPlay play\n");
+                $log->debug("$name: running playlist play\n");
                 $client->execute( [ "playlist", "play", "$baseUrl/$client_id/audio.pcm" ] );
         }
         Slim::Utils::Timers::killTimers( $client, \&_shutdown_squeezebox );
@@ -232,13 +232,15 @@ sub externalVolumeInfoCallback {
         $client = $request->client;
 
         if ($client) {
-                my $dev = $$airplay{ $client->id() };
+                my $dev  = $$airplay{ $client->id() };
+                my $name = $client->name();
 
                 my $change = 0;
                 $change |= _setExternalVolumeInfo( $dev, $request->getParam('_p1') );
                 $change |= _setExternalVolumeInfo( $dev, $request->getParam('_p2') );
 
                 if ( $change && $dev->{relative} && !( $dev->{precise} ) ) {
+                        $log->debug( "$name: volume info changed " . Data::Dump::dump($dev) );
                         setAirPlayDeviceVolume( $client, "relative" );
                 }
         }
@@ -267,7 +269,7 @@ sub notification {
         my ($notification) = @_;
 
         while ( ( $key, $value ) = each %$notification ) {
-                $log->debug("key: '$key', value: $hash{$key}\n");
+                $log->debug( "key: '$key', value: " . Data::Dump::dump($value) );
                 my $client = find_client($key);
                 if ($client) {
 
