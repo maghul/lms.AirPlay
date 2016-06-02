@@ -27,12 +27,13 @@ my $log = Slim::Utils::Log->addLogCategory(
                 'description' => getDisplayName(),
         }
 );
-my $baseUrl = Plugins::AirPlay::Squareplay::getBaseUrl();
 
 use Slim::Utils::Misc;
 my $prefs = preferences('plugin.airplay');
 
 my $originalPlaylistJumpCommand;
+
+my $squareplay;
 
 ################################
 ### Plugin Interface ###########
@@ -60,7 +61,8 @@ sub initPlugin {
         #   Check volume control type
         Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::externalVolumeInfoCallback, [ ['getexternalvolumeinfo'] ] );
 
-        my $baseUrlRe = quotemeta($baseUrl);
+        $squareplay = Plugins::AirPlay::Squareplay->new();
+        my $baseUrlRe = quotemeta( $squareplay->uri() );
         Slim::Formats::RemoteMetadata->registerProvider(
                 match => qr/$baseUrlRe/,
                 func  => \&Plugins::AirPlay::Squeezebox::metaDataProvider
@@ -70,9 +72,10 @@ sub initPlugin {
         $originalPlaylistJumpCommand =
           Slim::Control::Request::addDispatch( [ 'playlist', 'jump', '_index', '_fadein', '_noplay', '_seekdata' ], [ 1, 0, 0, \&playlistJumpCommand ] );
 
-        Plugins::AirPlay::Squareplay::startNotifications();
+        $squareplay->start();
 
-        Plugins::AirPlay::Squareplay::start();
+        $squareplay->startNotifications();
+
 
         return 1;
 }
@@ -98,7 +101,7 @@ sub shutdownPlugin {
 
 sub isRunningAirplay {
         my $url       = shift;
-        my $baseUrlRe = quotemeta($baseUrl);
+        my $baseUrlRe = quotemeta( $squareplay->uri() );
         return $url =~ /^$baseUrlRe/;
 }
 
@@ -114,13 +117,8 @@ sub playlistJumpCommand {
 
         if ( isRunningAirplay($url) ) {
                 $log->debug("AIRPLAY command: jump $index");
-                Plugins::AirPlay::Squareplay::jump( $client, $index );
-
-                #		Slim::Control::Request::notifyFromArray($client, ['airplay', 'jump', $index],);
-                #
-                #		if ( $client->isPlaying()) {
-                #			return;
-                #		}
+                my $box = Plugins::AirPlay::Squeezebox->get($client);
+                $box->jump($index);
 
                 # We can't jump anywhere in the playlist but this call does many other things we need done.
                 $request->addParam( '_index', 0 );
@@ -141,7 +139,8 @@ sub timeCallback {
         $log->debug("cli time - time = $time");
 
         if ( isRunningAirplay($stream) ) {
-                Plugins::AirPlay::Squareplay::command( $client, "time/$time" );
+                my $box = Plugins::AirPlay::Squeezebox->get($client);
+                $box->seek($time);
         }
 }
 
@@ -155,22 +154,12 @@ sub playCallback {
         my $mode     = Slim::Buttons::Common::mode($client);
         my $name     = $client->name();
 
-        $log->debug( "duration=" . $song->duration() );
         if ( isRunningAirplay($stream) ) {
-
-                #		if ($prefs->get('pausestop')) {
-
-                #			if ( "play" ne $playmode ) {
+				$log->debug( "cli playCallback - playmode=$playmode  stream=$stream " . $request->getRequestString() . ", duration=" . $song->duration() );
                 $log->debug("$name: Issuing $playmode");
-
-                #					Plugins::AirPlay::Squareplay::command($client, "playresume");tx
-
-                #					Plugins::AirPlay::Squeezebox::airPlayDevicePlay($client, $playmode eq "play");
-                Plugins::AirPlay::Squeezebox::airPlayDevicePlay( $client, 1 ) if ( $playmode eq "play" );
-                Plugins::AirPlay::Squeezebox::airPlayDevicePlay( $client, 0 ) if ( $playmode eq "pause" );
-
-                #			}
-                #		}
+                my $box = Plugins::AirPlay::Squeezebox->get($client);
+                $box->airPlayDevicePlay(1) if ( $playmode eq "play" );
+                $box->airPlayDevicePlay(0) if ( $playmode eq "pause" );
         }
 
 }
@@ -205,21 +194,13 @@ sub clientConnectCallback {
         if (       $request->isCommand( [ ['client'], ['new'] ] )
                 || $request->isCommand( [ ['client'], ['reconnect'] ] ) )
         {
-                #				Plugins::AirPlay::Squareplay::setClientNotificationState($client);
-
                 # TODO: Only call this once
-                #				Plugins::AirPlay::Shairplay::startSession( $client );
-                Plugins::AirPlay::Squeezebox::initClient($client);
-
-                $log->debug("Trying to get external volume info for new player...");
-                Slim::Control::Request::executeRequest( $client, ['getexternalvolumeinfo'] );
+                my $box = Plugins::AirPlay::Squeezebox->initialize( $client, $squareplay );
 
         }
         if ( $request->isCommand( [ ['client'], ['disconnect'] ] ) ) {
-
-                # TODO: Only call this once
-                Plugins::AirPlay::Squareplay::stopSession($client);
-                Plugins::AirPlay::Squeezebox::initClient($client);
+                my $box = Plugins::AirPlay::Squeezebox->get($client);
+                $box->close() if defined $box;
         }
 }
 

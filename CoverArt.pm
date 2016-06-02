@@ -19,8 +19,6 @@ my $prefs = preferences('plugin.airplay');
 my $log   = logger('plugin.airplay');
 
 my $resizer = Slim::Utils::Versions->compareVersions( $::VERSION, 7.6 ) < 0 ? "Slim::Utils::ImageResizer" : "Slim::Utils::GDResizer";
-my $baseUrl = Plugins::AirPlay::Squareplay::getBaseUrl();
-
 eval "use $resizer";
 
 my @fetchQ;                                   # Q of images to fetch
@@ -140,7 +138,9 @@ sub _fetch {
 
         $fetching{ $entry->{'id'} } = $entry;
 
-        Slim::Networking::SimpleAsyncHTTP->new( \&_gotImage, \&_gotError, $entry )->get("$baseUrl/$squeezebox_id/cover.jpg");
+        my $squareplay = Plugins::AirPlay::Squareplay::get();
+        my $uri        = $squareplay->uri("$squeezebox_id/cover.jpg");
+        Slim::Networking::SimpleAsyncHTTP->new( \&_gotImage, \&_gotError, $entry )->get($uri);
 }
 
 sub _gotImage {

@@ -3,7 +3,7 @@
 use Devel::StackTrace;
 
 use constant SLIM_SERVICE => 0;
-use constant SCANNER      => 0;
+use constant SCANNER      => 1;
 use constant ISWINDOWS    => 0;
 use constant PERFMON      => 0;
 use constant DEBUGLOG     => 0;
