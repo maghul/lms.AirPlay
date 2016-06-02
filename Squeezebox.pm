@@ -135,10 +135,7 @@ sub progress_notification {
         my $length  = $$progress{length} / 1000;
 
         #	start_player($client); # Might flush?
-        $log->debug("$name: setting offset=$newtime, duration=$length");
-        $song->startOffset($newtime);
-
-        #	$song->startOffset($newtime-$client->songElapsedSeconds());
+        $song->startOffset( $newtime - $client->songElapsedSeconds() );
         $song->duration($length);
         $log->debug( "$name: song=" . $song->duration );
 
