@@ -38,34 +38,34 @@ sub initClient {
 #}
 
 sub _shutdown_squeezebox {
-        $log->warn("Shutting down squeezebox\n");
         my $client = shift;
 
         #    my $url= shift;
 
         #    if ( $url eq current-song ) {
+        $log->debug("$name: Shutting down squeezebox\n");
         $client->execute( [ "power", "0" ] );
 
         #    }
 }
 
 sub start_player {
-        $log->warn("START AirPlay squeezebox\n");
         my $client = shift;
 
         if ($client) {
                 my $client_id = $client->id();
-                $log->warn("STARTING AirPlay play\n");
+                my $name      = $client->name();
+                $log->debug("$name: running AirPlay play\n");
                 $client->execute( [ "playlist", "play", "$baseUrl/$client_id/audio.pcm" ] );
         }
         Slim::Utils::Timers::killTimers( $client, \&_shutdown_squeezebox );
 }
 
 sub stop_player {
-        $log->warn("STOP AirPlay squeezebox\n");
         my $client = shift;
         if ($client) {
-                $log->warn("STOPPING AirPlay play\n");
+                my $name = $client->name();
+                $log->debug("$name: running AirPlay stop\n");
                 $client->execute( ["stop"] );
                 my $timeout = 20;
                 Slim::Utils::Timers::setTimer( $client, Time::HiRes::time() + $timeout, \&_shutdown_squeezebox );
@@ -92,6 +92,8 @@ sub dmap_lisitingitem_notification {
         my $client = shift;
         my $dmap   = shift;
 
+        my $id       = $client->id();
+        my $name     = $client->name();
         my $trackurl = "$baseUrl/$id/audio.pcm";
         Slim::Music::Info::setRemoteMetadata( $trackurl, { title => $$dmap{'dmap.itemname'}, } );
         my $itemid = $$dmap{'dmap.persistentid'};
@@ -119,20 +121,19 @@ sub dmap_lisitingitem_notification {
                 type     => "AirPlay"
         };
 
-        $log->debug( "Playing info: " . Data::Dump::dump($obj) );
-
 }
 
 sub progress_notification {
         my $client   = shift;
         my $progress = shift;
 
+        my $name    = $client->name();
         my $song    = $client->streamingSong;
         my $newtime = $$progress{current} / 1000;
         my $length  = $$progress{length} / 1000;
 
         #	start_player($client); # Might flush?
-        $log->debug(" setting offset=$newtime, duration=$length");
+        $log->debug("$name: setting offset=$newtime, duration=$length");
         $song->startOffset($newtime);
 
         #	$song->startOffset($newtime-$client->songElapsedSeconds());
@@ -201,9 +202,8 @@ sub externalVolumeInfoCallback {
 
 sub send_volume_control_state {
         $client = shift;
-        $log->debug( "client=" . $client->name() . ", volume='$volume', airplay=" . Data::Dump::dump( $client{airplay} ) );
-        $log->debug( "client=" . $client->name() . ", id=" . $client->id() . ", relative=$client{airplay}->{relative}, precise=$client{airplay}->{precise}" );
         setAirPlayDeviceVolume( $client, ( defined $client{airplay}->{relative} ) ? "relative" : "absolute" );
+        $log->debug( $client->name() . ": id=" . $client->id() . ", relative=$$airplay{$client->id()}->{relative}, precise=$$airplay{$client->id()}->{precise}" );
 }
 
 sub find_client {

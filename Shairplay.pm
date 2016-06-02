@@ -89,13 +89,13 @@ sub asyncConnect {
 }
 
 sub nop_callback {
-        $log->debug("nop_callback...");
+##    $log->debug( "nop_callback..." );
 }
 
 sub _tx {
         my $url = shift;
         my $callback = shift || \&nop_callback;
-        $log->info("EMH tx URL='$url', callback='$callback'");
+        $log->debug("TX URL='$url'");
 
         Slim::Networking::SimpleAsyncHTTP->new( $callback, $callback )->get($url);
 
@@ -114,7 +114,7 @@ sub command {
         my $player   = $client->id();
 
         my $params;
-        $log->info("AirPlay::Shairplay client '$client->name()', command '$command'");
+        $log->info( $client->name() . ": command '$command'" );
         _tx( "$baseUrl/$player/control/$command", $callback );
 }
 
@@ -145,6 +145,7 @@ sub setClientNotificationState {
 }
 
 sub startNotifications {
+        my $retryTimer    = shift || 3;
         my $maxRetryTimer = shift || 10;
 
         $retryTimer = $maxRetryTimer if ( $retryTimer > $maxRetryTimer );
@@ -169,6 +170,7 @@ sub startNotifications {
                         ]
                 }
         );
+
 }
 
 sub stopNotifications {
