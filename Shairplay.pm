@@ -11,7 +11,7 @@ use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Slim::Utils::Strings qw(string cstring);
 use Slim::Networking::Async::HTTP;
-use Plugins::AirPlay::Chunked;
+use Plugins::AirPlay::ChunkedHTTP;
 use Plugins::AirPlay::Squeezebox;
 use Plugins::AirPlay::Squeezeplay;
 
@@ -22,36 +22,47 @@ my $baseUrl = Plugins::AirPlay::Squeezeplay::getBaseUrl();
 
 my $sessions_running = 0;
 
-sub asyncCBContentType {
-        my ( $http, $client, $params, $callback, $httpClient, $response ) = @_;
-        $log->warn( Data::Dump::dump($http) );
-        return 1;
-}
-
 sub asyncCBContent {
         my $http = shift;
         my $data = shift;
         $$data{RetryTimer} = 1;
         my $html = $http->response->content();
-        $log->warn( Data::Dump::dump($html) );
+        $log->debug( "HTML Chunk: " . Data::Dump::dump($html) );
+        my $seq = $http->response->header("chunk_extensions");
+
+        if ( defined $seq ) {
+                $seq =~ s/seq=//;
+                $seq += 0;
+                if ( ++$sequenceNumber != $seq ) {
+                        $sequenceNumber = $seq + 0;
+                        $log->info("Shairplay notification sequence number mismatch: expected $sequenceNumber but got $seq");
+                }
+        }
+
         $log->warn( Data::Dump::dump($data) );
-        my $perl = decode_json($html);
+        eval {
+                my $perl = decode_json($html);
+                Plugins::AirPlay::Squeezebox::notification($perl);
+        };
 
-        #    $log->warn(Data::Dump::dump($perl));
-
-        Plugins::AirPlay::Squeezebox::notification($perl);
+        if ($@) {
+                $log->warn( "Shairplay message could not be decoded, shutting down notifications." . $@ );
+                asyncDisconnect( $http, $data );
+                return 0;
+        }
         return 1;
 }
 
 sub asyncCBContentTypeError {
-
-        # error callback for establishing content type - causes indexHandler to be processed again with stored params
-        my ( $http, $error, $client, $params, $callback, $httpClient, $response ) = @_;
-        $sessions_running = 0;    # Restart sessions on reconnect?
+        my $http  = shift;
+        my $error = shift;
+        my $data  = shift;
+        $log->warn("Notifications socket error: $error");
+        asyncDisconnect( $http, $data );
 }
 
 sub reconnectNotifications {
-        my ( $error, $data ) = @_;
+        my ( $http, $data ) = @_;
 
         $log->warn("reconnectNotifications. trying again... ");
         Plugins::AirPlay::Squeezeplay::checkHelper();
@@ -134,7 +145,6 @@ sub setClientNotificationState {
 }
 
 sub startNotifications {
-        my $retryTimer    = shift || 3;
         my $maxRetryTimer = shift || 10;
 
         $retryTimer = $maxRetryTimer if ( $retryTimer > $maxRetryTimer );
@@ -143,13 +153,13 @@ sub startNotifications {
         my $url = "$baseUrl/notifications.json";
         $log->info( "AirPlay::Shairplay notification URL='" . $url . "'" );
 
-        Plugins::AirPlay::Chunked->new()->send_request(
+        Plugins::AirPlay::ChunkedHTTP->new()->send_request(
                 {
                         'request'      => HTTP::Request->new( GET => $url ),
-                        'onBody'       => \&asyncCBContent,
+                        'onChunk'      => \&asyncCBContent,
                         'onError'      => \&asyncCBContentTypeError,
                         'onDisconnect' => \&asyncDisconnect,
-                        'onConnect'    => \&asyncConnect,
+                        'onHeaders'    => \&asyncConnect,
                         'Timeout'      => 100000000,
                         'passthrough'  => [
                                 {
@@ -159,7 +169,6 @@ sub startNotifications {
                         ]
                 }
         );
-
 }
 
 sub stopNotifications {

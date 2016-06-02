@@ -46,9 +46,6 @@ sub initPlugin {
         Plugins::AirPlay::Settings->new($class);
         Plugins::AirPlay::Settings->init();
 
-        #	Plugins::AirPlay::HTTP->init(); # TODO: Remove... maybe?
-        Plugins::AirPlay::Chunked->init();    # TODO: Remove... maybe?
-
         Slim::Web::Pages->addRawFunction( '/airplayimage', \&Plugins::AirPlay::CoverArt::handler );
 
         # Install callback to get client power state, volume and connect/disconnect changes
