@@ -191,32 +191,26 @@ sub dmap_notification {
         my $self = shift;
         my $dmap = shift;
 
+	my $itemid = $$dmap{'dmap.persistentid'};
+	
+        $self->{metadata} = {
+		title  => $$dmap{'dmap.itemname'},
+                artist => $$dmap{'daap.songartist'},
+                album  => $$dmap{'daap.songalbum'},
+
+                cover => $self->uri("cover.jpg?$itemid"),
+                tracknum => $$dmap{'daap.songtracknumber'},
+                duration => $$dmap{'daap.songtime'}/1000,
+                bitrate  => 44100,
+                type     => "AirPlay ".$self->{source}
+		    
+        };
+
         my $trackurl = $self->uri("audio.pcm");
         Slim::Music::Info::setRemoteMetadata( $trackurl, { title => $$dmap{'dmap.itemname'}, } );
 
         my $itemid = $$dmap{'dmap.persistentid'};
-        my $obj    = Slim::Schema::RemoteTrack->updateOrCreate(
-                $trackurl,
-                {
-                        title  => $$dmap{'dmap.itemname'},
-                        artist => $$dmap{'daap.songartist'},
-                        album  => $$dmap{'daap.songalbum'},
-
-                        coverurl => $self->uri("cover.jpg?$itemid"),
-                        tracknum => $$dmap{'daap.songtracknumber'},
-                        bitrate  => 44100,
-                }
-        );
-
-        $self->{metadata} = {
-                artist => $$dmap{'daap.songartist'},
-                album  => $$dmap{'daap.songalbum'},
-
-                coverurl => $self->uri("cover.jpg?$itemid"),
-                tracknum => $$dmap{'daap.songtracknumber'},
-                bitrate  => 44100,
-                type     => "AirPlay"
-        };
+        my $obj    = Slim::Schema::RemoteTrack->updateOrCreate( $trackurl, $self->{metadata} );
 }
 
 sub progress_notification {
@@ -263,6 +257,16 @@ sub airPlayDevicePlay {
                 $self->command($newstate);
                 $self->{playerstate} = $newstate;
         }
+}
+
+sub source_notification {
+        my $self   = shift;
+        my $source = shift;
+
+	$source =~ s/\..*//;
+
+        $self->{source} = $source;
+	$self->{metadata}->{type} = "AirPlay ".$self->{source}
 }
 
 sub volume_notification {
@@ -394,6 +398,9 @@ sub notification {
                         my $content = $value;
                         my $dmap    = $$content{"dmap.listingitem"};
                         $box->dmap_notification($dmap) if ($dmap);
+
+                        my $source = $$content{"source"};
+                        $box->source_notification($source) if ( defined $source );
 
                         my $volume = $$content{"volume"};
                         $box->volume_notification($volume) if ( defined $volume );
