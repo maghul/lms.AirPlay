@@ -16,32 +16,51 @@ my $center_volume = 52;
 
 my $airplay = {};
 
-sub initialize {
+sub getOrCreate {
         my $class      = shift;
         my $client     = shift;
         my $squareplay = shift;
 
+	my $id = $client->id();
+	
+	my $self = Plugins::AirPlay::Squeezebox->get( $client );
+	return $self if defined $self;
+	
         my $self = {
                 client     => $client,
                 name       => $client->name(),    # TODO: Remove
                 id         => $client->id(),      # TODO: Remove
                 squareplay => $squareplay,
-                relative   => false,
+                relative   => 0,
+                precise    => 1,
+		source     => "",
         };
 
-        my $id = $client->id();
         $br = bless( $self, $class );
 
-        if ( !exists $$airplay{$id} ) {
-                $$airplay{$id} = $br;
-        }
-	$squareplay->post_request( "control/start", $self->getJsonString() );
-	$self->command("volume/absolute");
-	$log->debug("Trying to get external volume info for new player...");
-	Slim::Control::Request::executeRequest( $client, ['getexternalvolumeinfo'] );
+	$log->debug("New client '$id'");
+	$$airplay{$id} = $br;
 
         return $br;
 }
+
+sub sendStart {
+        my $self = shift;
+
+	my $squareplay = $self->{squareplay};
+	
+	$log->debug("Trying to get external volume info for new player...");
+	$squareplay->post_request( "control/start", $self->getJsonString(),
+				   sub {
+					   $self->sendVolumeMode();
+					   
+				   }, 
+				   sub {
+					   $log->debug( "control/start error callback : ".$self);
+					   
+				   } );
+}
+
 
 sub close {
         my $self = shift;

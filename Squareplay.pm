@@ -180,12 +180,15 @@ sub post_request {
         my $self    = shift;
         my $req     = shift;
         my $content = shift;
+        my $callback = shift || \&nop_callback;
+        my $ecallback = shift || \&nop_callback;
 
         my $url = $self->uri($req);
-        my $request = HTTP::Request->new( "POST", $url );
-        $request->content($content);
-        Slim::Networking::Async::HTTP->new()->send_request( { 'request' => $request } );
+        $log->debug("TX URL='$url', POST content=$content");
 
+	
+
+        Slim::Networking::SimpleAsyncHTTP->new( $callback, $ecallback )->post($url,$content);
 }
 
 sub setClientNotificationState {
@@ -239,10 +242,11 @@ sub startAllSessions {
                 $sessions_running = 1;
                 foreach my $client ( Slim::Player::Client::clients() ) {
                         $log->debug( "Start Session client name=" . $client->name() . ", id=" . $client->id() );
-                        my $box = Plugins::AirPlay::Squeezebox->initialize( $client, $self );
-
-                        #			$box->send_volume_control_state();
+                        my $box = Plugins::AirPlay::Squeezebox->getOrCreate( $client, $self );
+			$box->sendStart();
                 }
+		Slim::Control::Request::executeRequest( 0, ['getexternalvolumeinfo'] );
+
         }
 }
 

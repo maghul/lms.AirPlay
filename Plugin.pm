@@ -194,9 +194,11 @@ sub clientConnectCallback {
         if (       $request->isCommand( [ ['client'], ['new'] ] )
                 || $request->isCommand( [ ['client'], ['reconnect'] ] ) )
         {
-                # TODO: Only call this once
-                my $box = Plugins::AirPlay::Squeezebox->initialize( $client, $squareplay );
-
+                my $box = Plugins::AirPlay::Squeezebox->get($client);
+		if ( ! defined $box ) {
+			$box = Plugins::AirPlay::Squeezebox->getOrCreate( $client, $squareplay );
+			$box->sendStart();
+		}
         }
         if ( $request->isCommand( [ ['client'], ['disconnect'] ] ) ) {
                 my $box = Plugins::AirPlay::Squeezebox->get($client);
