@@ -4,7 +4,7 @@
 	<name>PLUGIN_AIRPLAY</name>
 	<module>Plugins::AirPlay::Plugin</module>
 	<playerMenu>RADIO</playerMenu>
-	<version>0.2.4</version>
+	<version>0.2.5</version>
 	<description>PLUGIN_AIRPLAY_DESC</description>
 	<creator>emh</creator>
 	<defaultState>enabled</defaultState>
