@@ -424,23 +424,25 @@ sub notification {
         while ( ( $key, $value ) = each %$notification ) {
                 $log->debug( "key: '$key', value: " . Data::Dump::dump($value) );
                 my $box = getById($key);
-                if ( $box && $box->isRunningAirplay() ) {
-                        my $content = $value;
-                        my $dmap    = $$content{"dmap.listingitem"};
-                        $box->dmap_notification($dmap) if ($dmap);
-
-                        my $source = $$content{"source"};
-                        $box->source_notification($source) if ( defined $source );
-
-                        my $volume = $$content{"volume"};
-                        $box->volume_notification($volume) if ( defined $volume );
-
-                        my $progress = $$content{"progress"};
-                        $box->progress_notification($progress) if ( defined $progress );
-
-                        $box->start_player() if ( $value eq "play" );
-                        $box->stop_player()  if ( $value eq "pause" );
-                        $box->stop_player()  if ( $value eq "stop" );
+                if ( $box ) {
+			if ( $box->isRunningAirplay() ) {
+				my $content = $value;
+				my $dmap    = $$content{"dmap.listingitem"};
+				$box->dmap_notification($dmap) if ($dmap);
+				
+				my $source = $$content{"source"};
+				$box->source_notification($source) if ( defined $source );
+				
+				my $volume = $$content{"volume"};
+				$box->volume_notification($volume) if ( defined $volume );
+				
+				my $progress = $$content{"progress"};
+				$box->progress_notification($progress) if ( defined $progress );
+			}
+			
+			$box->start_player() if ( $value eq "play" );
+			$box->stop_player()  if ( $value eq "pause" );
+			$box->stop_player()  if ( $value eq "stop" );
                 }
                 else {
                         $log->debug("No client named '$key' yet....");
