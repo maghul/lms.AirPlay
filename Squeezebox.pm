@@ -11,6 +11,9 @@ use Data::Dumper;
 use Slim::Control::Request;
 use Slim::Utils::Log;
 
+use overload 
+    '""' => 'stringify';
+
 my $log           = logger('plugin.airplay');
 my $center_volume = 52;
 
@@ -72,6 +75,13 @@ sub close {
                 my $squareplay = $self->{squareplay};
                 $squareplay->post_request( "control/stop", $self->getJsonString() );
         }
+}
+
+sub stringify {
+        my $self = shift;
+	my $name = $self->name();
+	my $id = $self->id();
+	return sprintf "Squeezebox{'%s','%s',connected to '%s'}", $name, $id, $self->{source};
 }
 
 sub get {
