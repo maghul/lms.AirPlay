@@ -164,7 +164,7 @@ sub reconnectNotifications {
         $log->warn("reconnectNotifications. trying again... ");
         $sequenceNumber = -1;
         $self->checkHelper();
-        $self->startNotifications( $$data{RetryTimer} * 2, $$data{MaxRetryTimer} );
+        $self->_startNotifications( $$data{RetryTimer} * 2, $$data{MaxRetryTimer} );
 }
 
 sub _tx {
@@ -205,7 +205,22 @@ sub startNotifications {
 
         $retryTimer = $maxRetryTimer if ( $retryTimer > $maxRetryTimer );
 
+	my $data = [
+		{
+			'Squareplay'    => $self,
+			'RetryTimer'    => $retryTimer,
+			'MaxRetryTimer' => $maxRetryTimer
+		}
+	    ];
+
         $log->info("AirPlay::Squareplay startNotifications retryTimer=$retryTimer, maxRetryTimer=$maxRetryTimer ");
+        Slim::Utils::Timers::setTimer( $self, Time::HiRes::time() + 5, \&_startNotifications, $data );
+}
+
+sub _startNotifications {
+        my $self = shift;
+	my $data = shift;
+	
         my $url = $self->uri("notifications.json");
         $log->info( "AirPlay::Squareplay notification URL='" . $url . "'" );
 
@@ -217,13 +232,7 @@ sub startNotifications {
                         'onDisconnect' => \&asyncDisconnect,
                         'onHeaders'    => \&asyncConnect,
                         'Timeout'      => 100000000,
-                        'passthrough'  => [
-                                {
-                                        'Squareplay'    => $self,
-                                        'RetryTimer'    => $retryTimer,
-                                        'MaxRetryTimer' => $maxRetryTimer
-                                }
-                        ]
+                        'passthrough'  => $data,
                 }
         );
 
