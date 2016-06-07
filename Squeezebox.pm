@@ -7,6 +7,7 @@ package Plugins::AirPlay::Squeezebox;
 use Plugins::AirPlay::Squareplay;
 
 use Data::Dumper;
+use Encode qw( decode encode );
 
 use Slim::Control::Request;
 use Slim::Utils::Log;
@@ -455,7 +456,11 @@ sub getJsonString {
         my $id   = $client->id();
         my $name = $client->name();
 
-        return "[{\"id\":\"$id\",\"name\":\"$name\"}]";
+        my $json = "[{\"id\":\"$id\",\"name\":\"$name\"}]";
+	$json = encode( 'utf-8', $json );
+	return $json;
+}
+
 }
 
 1;
