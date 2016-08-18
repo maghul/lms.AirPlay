@@ -141,6 +141,10 @@ sub asyncDisconnect {
         $sessions_running = 0;    # Restart sessions on reconnect?
 
         # Timeout if we never get any data
+	$$data{RetryTimer} *= 2;
+	if ($$data{RetryTimer}>$$data{MaxRetryTimer}) {
+		$$data{RetryTimer}= $$data{MaxRetryTimer};
+	}
         Slim::Utils::Timers::setTimer( $squareplay, Time::HiRes::time() + $$data{RetryTimer}, \&reconnectNotifications, $data );
 }
 
@@ -164,7 +168,7 @@ sub reconnectNotifications {
         $log->warn("reconnectNotifications. trying again... ");
         $sequenceNumber = -1;
         $self->checkHelper();
-        $self->_startNotifications( $$data{RetryTimer} * 2, $$data{MaxRetryTimer} );
+        $self->_startNotifications( $data );
 }
 
 sub _tx {
@@ -205,16 +209,14 @@ sub startNotifications {
 
         $retryTimer = $maxRetryTimer if ( $retryTimer > $maxRetryTimer );
 
-	my $data = [
-		{
-			'Squareplay'    => $self,
-			'RetryTimer'    => $retryTimer,
-			'MaxRetryTimer' => $maxRetryTimer
-		}
-	    ];
+	my $data = {
+		'Squareplay'    => $self,
+		'RetryTimer'    => $retryTimer,
+		'MaxRetryTimer' => $maxRetryTimer
+	};
 
         $log->info("AirPlay::Squareplay startNotifications retryTimer=$retryTimer, maxRetryTimer=$maxRetryTimer ");
-        Slim::Utils::Timers::setTimer( $self, Time::HiRes::time() + 5, \&_startNotifications, $data );
+        Slim::Utils::Timers::setTimer( $self, Time::HiRes::time() + $retryTimer, \&_startNotifications, $data );
 }
 
 sub _startNotifications {

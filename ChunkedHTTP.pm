@@ -88,7 +88,7 @@ sub _http_error {
 
         if ( my $cb = $args->{onDisconnect} ) {
                 my $passthrough = $args->{passthrough} || [];
-                $cb->( $self, @{$passthrough} );
+                $cb->( $self, $passthrough );
         }
 }
 
@@ -112,7 +112,7 @@ sub _disconnect {
 
         if ( my $cb = $args->{onDisconnect} ) {
                 my $passthrough = $args->{passthrough} || [];
-                $cb->( $self, @{$passthrough} );
+                $cb->( $self, $passthrough );
         }
 }
 
@@ -168,7 +168,7 @@ sub _readHeader {
                 if ( $line eq "" ) {
                         if ( my $cb = $args->{onHeaders} ) {
                                 my $passthrough = $args->{passthrough} || [];
-                                $cb->( $self, @{$passthrough} );
+                                $cb->( $self, $passthrough );
                         }
 
                         if ( $$socket->{chunked} == 1 ) {
@@ -227,7 +227,7 @@ sub _readChunkContent {
 
                         # Here we have a complete chunk and the client wants each chunk.
                         my $passthrough = $args->{passthrough} || [];
-                        my $continue = $cb->( $self, @{$passthrough} );
+                        my $continue = $cb->( $self, $passthrough );
                         if ( $continue == 0 ) {
                                 $self->socket->close();
                         }
