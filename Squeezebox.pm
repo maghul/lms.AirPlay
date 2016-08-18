@@ -196,6 +196,13 @@ sub stop_player {
         Slim::Utils::Timers::setTimer( $self, Time::HiRes::time() + $timeout, \&_shutdown_squeezebox );
 }
 
+sub reload_coverart {
+
+        # Force reload of coverart
+        my $self = shift;
+
+}
+
 # TODO: class method
 sub metaDataProvider {
         my ( $client, $url ) = @_;
@@ -461,9 +468,10 @@ sub notification {
 				$box->progress_notification($progress) if ( defined $progress );
 			}
 			
-			$box->start_player() if ( $value eq "play" );
-			$box->stop_player()  if ( $value eq "pause" );
-			$box->stop_player()  if ( $value eq "stop" );
+			$box->start_player()    if ( $value eq "play" );
+			$box->stop_player()     if ( $value eq "pause" );
+			$box->stop_player()     if ( $value eq "stop" );
+			$box->reload_coverart() if ( $value eq "coverart" );
                 }
                 else {
                         $log->debug("No client named '$key' yet....");
