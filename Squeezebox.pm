@@ -9,6 +9,7 @@ use Plugins::AirPlay::Squareplay;
 use Data::Dumper;
 use Encode qw( decode encode );
 
+use Scalar::Util qw(blessed);
 use Slim::Control::Request;
 use Slim::Utils::Log;
 
@@ -27,7 +28,7 @@ sub getOrCreate {
 
 	my $id = $client->id();
 	
-	my $self = Plugins::AirPlay::Squeezebox->get( $client );
+        my $self = $$airplay{$id};
 	return $self if defined $self;
 	
         my $self = {
@@ -85,20 +86,23 @@ sub stringify {
 	return sprintf "Squeezebox{'%s','%s',connected to '%s'}", $name, $id, $self->{source};
 }
 
-sub get {
-        my $class  = shift;
-        my $client = shift;
-
-        my $id = $client->id();
-        my $br = $$airplay{$id};
-        return $br;
-}
 
 sub getById {
         my $id = shift;
 
         my $br = $$airplay{$id};
+	if (! defined $br) {
+		$log->error( "Client ID=$id has no assigned box" );
+	}
         return $br;
+}
+
+sub get {
+        my $class  = shift;
+        my $client = shift;
+
+        my $id = $client->id();
+	return getById($id);
 }
 
 sub uri {
