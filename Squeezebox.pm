@@ -319,7 +319,7 @@ sub mixerVolumeQueryCallback {
         my $box    = Plugins::AirPlay::Squeezebox->get($client);
 
         if ( !$box->{relative} ) {
-                $log->debug( "$name: request volume=$volume, device volume=" . $box->{device_volume} );
+                $log->debug( "$name: request volume=$volume, box=$box, device volume=" . $box->{device_volume} );
                 if ( $volume != $box->{device_volume} ) {
                         $box->setAirPlayDeviceVolume( $volume + 0 );
                 }
@@ -349,6 +349,8 @@ sub mixerVolumeCallback {
         }
 }
 
+# Get the parameter key:value pair and update the key in self
+# if it has changed. Returns "true" if there was a change.
 sub _setExternalVolumeInfo {
         my ( $self, $param ) = @_;
 
@@ -381,12 +383,27 @@ sub checkVolumeInfoCallback {
 	$change |= $self->_setExternalVolumeInfo( $request->getParam('_p1') );
 	$change |= $self->_setExternalVolumeInfo( $request->getParam('_p2') );
 	
-	$log->debug("$name: change=$change, relative=".$self->{relative}.", precise=".$self->{precise} );
-	logBacktrace();
 	if ( $change ) {
 		$log->debug( "$name: volume info changed, relative=".$self->{relative}.", precise=".$self->{precise} );
 		$self->sendVolumeMode();
 	}
+}
+
+
+# Execute a externalvolumeinfo request for the squeezebox
+sub getexternalvolumeinfo {
+        # Not a method
+	my ( $box )  = @_;
+        my $id = (blessed($box))?$box->{id}:undef;
+	#	Slim::Control::Request::executeRequest( $client, ['getexternalvolumeinfo'] );
+	
+	my $request = Slim::Control::Request->new( 
+		$id,
+		['getexternalvolumeinfo'],
+		1
+	);
+
+	$request->execute();
 }
 
 # TODO: We should get the callback when prefs are changed but that doesn't seem to happen...

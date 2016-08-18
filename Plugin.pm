@@ -200,6 +200,7 @@ sub clientConnectCallback {
 			$box->sendStart();
 		}
         }
+		Plugins::AirPlay::Squeezebox::getexternalvolumeinfo(0);
         if ( $request->isCommand( [ ['client'], ['disconnect'] ] ) ) {
                 my $box = Plugins::AirPlay::Squeezebox->get($client);
                 $box->close() if defined $box;

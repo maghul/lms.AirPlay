@@ -255,8 +255,8 @@ sub startAllSessions {
                         $log->debug( "Start Session client name=" . $client->name() . ", id=" . $client->id() );
                         my $box = Plugins::AirPlay::Squeezebox->getOrCreate( $client, $self );
 			$box->sendStart();
+			$box->getexternalvolumeinfo();
                 }
-		Slim::Control::Request::executeRequest( 0, ['getexternalvolumeinfo'] );
 
         }
 }
