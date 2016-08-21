@@ -252,7 +252,8 @@ sub _error {
         my $msg  = shift;
 
         if ( my $cb = $args->{onError} ) {
-                $cb->( $self, $msg );
+                my $passthrough = $args->{passthrough} || [];
+                $cb->( $self, $msg, $passthrough );
         }
         else {
                 print "Unhandled error: $msg\n";
