@@ -49,10 +49,13 @@ sub start {
         my $logfile    = logFile();
 
         $squareplay = undef;
-        my $cmd = $helperPath;
+	my $port= 6111;
+	my $logfile= catdir(Slim::Utils::OSDetect::dirsFor('log'), "squareplay.log");
+        my $cmd = "$helperPath -p $port -l '$logfile'";
+	
         $log->info("starting $cmd");
 
-        eval { $squareplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $cmd ); };
+        eval { $squareplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $helperPath, "-l", $logfile, "-p", $port ); };
         $log->info("started $cmd $squareplay");
 }
 
