@@ -21,14 +21,18 @@ use Config;
 use HTTP::Request;
 use Plugins::AirPlay::ChunkedHTTP;
 use Plugins::AirPlay::Squeezebox;
+use Plugins::AirPlay::FindKey;
 
 my $squareplay;
 my $log = logger('plugin.airplay');
 
 sub new {
         my $class = shift;
-
-        my $self = {};
+	my $basedir = shift;
+	
+        my $self = {
+		basedir => $basedir
+	};
 
         return bless( $self, $class );
 
@@ -36,6 +40,26 @@ sub new {
 
 sub logFile {
         return catdir( Slim::Utils::OSDetect::dirsFor('log'), "squareplay.log" );
+}
+
+sub keyFile {
+        my $self       = shift;
+
+	my $basedir    = $self->{basedir};
+	
+        my $keyfile= catdir( $basedir, "squareplay.key" );
+
+	if ( (! -e $keyfile) || (! -f $keyfile) ) {
+		$log->error("Finding and installing $keyfile");
+		Plugins::AirPlay::FindKey::search($keyfile);
+		$log->error("Done finding and installing $keyfile");
+	}
+	if ( (! -e $keyfile) || (! -f $keyfile) ) {
+		$log->error("Could not find $keyfile");
+		die("Could not find $keyfile");
+	}
+
+	return $keyfile;
 }
 
 sub start {
@@ -47,15 +71,15 @@ sub start {
         };
         my $helperPath = Slim::Utils::OSDetect::getOS->decodeExternalHelperPath($helperName);
         my $logfile    = logFile();
-
+	my $keyfile    = $self->keyFile();
         $squareplay = undef;
 	my $port= 6111;
 	my $logfile= catdir(Slim::Utils::OSDetect::dirsFor('log'), "squareplay.log");
-        my $cmd = "$helperPath -p $port -l '$logfile'";
+        my $cmd = "$helperPath -p $port -l '$logfile' -k '$keyfile'";
 	
-        $log->info("starting $cmd");
+        $log->error("starting $cmd");
 
-        eval { $squareplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $helperPath, "-l", $logfile, "-p", $port ); };
+        eval { $squareplay = Proc::Background->new( { 'die_upon_destroy' => 1 }, $helperPath, "-l", $logfile, "-p", $port, "-k", $keyfile ); };
         $log->info("started $cmd $squareplay");
 }
 

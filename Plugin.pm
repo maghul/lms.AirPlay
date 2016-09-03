@@ -61,7 +61,8 @@ sub initPlugin {
         #   Check volume control type
         Slim::Control::Request::subscribe( \&Plugins::AirPlay::Squeezebox::externalVolumeInfoCallback, [ ['getexternalvolumeinfo'] ] );
 
-        $squareplay = Plugins::AirPlay::Squareplay->new();
+        my $basedir = $class->_pluginDataFor('basedir');
+        $squareplay = Plugins::AirPlay::Squareplay->new($basedir);
         my $baseUrlRe = quotemeta( $squareplay->uri() );
         Slim::Formats::RemoteMetadata->registerProvider(
                 match => qr/$baseUrlRe/,

@@ -28,4 +28,6 @@ The AirPlay package is licensed under the LGPL with an exception that allows it 
 
 Useage
 ------
-It should be installed to an LMS Plugin directory.
+It should be installed to an LMS Plugin directory. It does not
+contains the airport.key but will search for it and store it
+as needed.
