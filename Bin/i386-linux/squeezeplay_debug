@@ -1,8 +1,0 @@
-#!/bin/bash
-cd /var/lib/squeezeboxserver/Plugins/AirPlay/Bin/i386-linux
-
-# Memory checking
-valgrind ./squeezeplay -k airport.key > /tmp/squeezeplay.log 2>&1
-
-#  For running tests on mauree
-#socat TCP-LISTEN:6111,reuseaddr,fork TCP:mauree.magnet.computer.se:6111
